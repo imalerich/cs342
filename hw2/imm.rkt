@@ -84,19 +84,24 @@
 ))))))
 
 ;; Converts a single letter grade to a numerical gpa value.
+;; \param scale:	List of grades and their corresponding numerical value.
 ;; \param letter:	The letter grade receieved for a course.
-(define gradetogpa
-	(lambda (letter)
-		(if (equal? letter 'A)
-			4.0
-			(if (equal? letter 'B)
-				3.0
-				(if (equal? letter 'C)
-					2.0
-					(if (equal? letter 'D)
-						1.0
-						0.0
-))))))
+(define gradefromscale
+	(lambda (scale)
+		(lambda (letter)
+			(if (null? scale)
+				0.0 ;; Letter grade not found in the given scale.
+				(if (equal? letter (car (car scale)))
+					(cadr (car scale))
+					((gradefromscale (cdr scale)) letter)
+)))))
+
+;; Compute the numerical gpa for a given letter grade
+;; using the default grading scale.
+(define gradetogpa 
+	(gradefromscale 
+	  '((A 4.0) (B 3.0) (C 2.0) (D 1.0) (F 0.0))
+))
 
 ;; Provides a custom implementation of the built in length function.
 ;; Returns the length of the input list.
