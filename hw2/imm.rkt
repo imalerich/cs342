@@ -193,3 +193,33 @@
 			0							;; Empty list has size 0...
 			(+ 1 (immlength (cdr lst)))	;; else length = 1 + length(tail).
 )))
+
+;;;;;;;;;;;;;;;;;;
+;;	Exmaples	;;
+;;;;;;;;;;;;;;;;;;
+
+;; s-table:	student-table
+;; course:	course id
+;; review the usage
+(define planincludes
+	(lambda (s-table)
+		(lambda (course)
+			(if (null? s-table)
+				'()
+				(if (presentin (cadr (cdr (car s-table))) course)
+					(cons (list (car (car s-table)) (cadr (car s-table)))
+						((planincludes (cdr s-table)) course))
+
+					((planincludes (cdr s-table)) course)
+)))))
+
+;; Not using lambda paramaters as I don't need to.
+;; lst:		list of courses
+;; course:	course id
+(define (presentin lst course)
+	(if (null? lst)
+		#f
+		(if (equal? (car lst) course)
+			#t
+			(presentin (cdr lst) course)
+)))
