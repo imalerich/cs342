@@ -46,8 +46,32 @@
 (define studentgpa
 	(lambda (grade-table)
 		(lambda (student-record)
-			(caddr student-record)	;; This is the class list portion of the student record.
-)))
+			(cons
+				(car student-record)
+				(cons
+					(cadr student-record)
+					(list ( /
+						;; Divide the total quality points...
+						((qualitypoints grade-table) (car  student-record))
+						;; ... by the total number of classes graded.
+						((coursesgraded grade-table) (car  student-record))
+)))))))
+
+;;;;;;;;;;;;;;
+;;	3 (d)	;;
+;;;;;;;;;;;;;;
+
+;; Searches the grade-table for all students who have taken the given course.
+;; Outputs the list of students, where each student is denoted by the results of f
+;; followed by the grade the student earned in the requested course.
+;; \param course:		Course code for any available course.
+;; \param grade-table:	Grade table containing course records.
+;; \param f:			A function taking a single student-id as parameter.
+(define gradebook
+	(lambda (course)
+		(lambda (grade-table)
+			(lambda (f)
+))))
 
 ;;;;;;;;;;;;;;;;;;
 ;;	Utilities	;;
@@ -86,26 +110,6 @@
 					;; Else just use the remainder of the list.
 					((qualitypoints (cdr grade-table)) student)
 )))))
-
-;; Returns the numerical gpa value for the course for the given student in the gpa table.
-;; \param grade-table:	Table of grades in our database.
-;; \param course:		Course code for a course in the students course-plan.
-;; \param student:		Unique identifier for a student in the database.
-;; \return:				Numerical value for the grade the student received,
-;;						0.0 if the student has not yet taken the class.
-(define gradefromtable
-	(lambda (grade-table)
-		(lambda (course)
-			(lambda (student)
-			  	(if (null? grade-table)
-					0.0 ;; Course not found.
-					;; Base case when the front of the grade-table list is the course we are looking for.
-					(if (and (equal? course (car (car grade-table))) (equal? student (cadr (car grade-table))))
-						;; Return the course grade as a gpa value.
-						(gradetogpa (caddr (car grade-table)))
-						;; else recurse to the tail of the list
-						(((gradefromtable (cdr grade-table)) course) student)
-))))))
 
 ;; Converts a single letter grade to a numerical gpa value.
 ;; \param scale:	List of grades and their corresponding numerical value.
