@@ -15,7 +15,7 @@
 	(lambda (student-table)
 		(lambda (f)
 			(if (null? student-table)
-				student-table								;; Table is empty nothing to do.
+				'()											;; Table is empty nothing to do.
 				(cons 										;; Construct the returned list.
 					(f (car student-table))					;; Apply f to the first element.
 					((applyonstds (cdr student-table)) f)	;; Recurse on the tail of the list.
@@ -71,11 +71,64 @@
 	(lambda (course)
 		(lambda (grade-table)
 			(lambda (f)
-))))
+				(if (null? grade-table)
+					'()		;; The grade-table is empty, nothing to do.
+					;; If the front of the grade-table is what we are looking for...
+					(if (equal? course (car (car grade-table)))
+						;; Construct a new list..
+						(cons	
+							;; Create a new list including the results of f and the students course grade.
+							(append (f (cadr (car grade-table))) (list (caddr (car grade-table))))
+							;; Add the recursive part of our list.
+							(((gradebook course) (cdr grade-table)) f))
+
+						;; Else we only need the recursive part.
+						(((gradebook course) (cdr grade-table)) f)
+))))))
 
 ;;;;;;;;;;;;;;;;;;
 ;;	Utilities	;;
 ;;;;;;;;;;;;;;;;;;
+
+;; Implements the findstudentwithgpa function described in the assignment specification.
+;; This is used for testing the gradebook function.
+;; \param student-table:	List of all enrolled students in our database.
+;; \param grade-table:		Table of grades in our database.
+;; \param student:			Unique identifier for a student in the database.
+(define findstudentwithgpa
+	(lambda (student-table)
+		(lambda (grade-table)
+			(lambda (student)
+				((studentgpa grade-table) ((getrecord student-table) student))
+))))
+
+;; Searches the student-table for the given student id.
+;; Returns the student record for the given student from the corresponding
+;; row in the student-table.
+;; \param student-table:	List of all enrolled students in our database.
+;; \param student:			Unique identifier for a student in the database.
+(define getrecord
+	(lambda (student-table)
+		(lambda (student)
+			(if (null? student-table)
+				;; Exhausted the student table list, return an empty list.
+				'()
+				;; Otherwise check the front of the list to see if we have found them.
+				(if (equal? (car (car student-table)) student)
+					;; We have found our student, return the record.
+					(car student-table)
+					;; Else, not yet found, recurse to the rest of the list.
+					((getrecord (cdr student-table)) student)
+)))))
+
+;; Looks for the given student id in the student-table, returns the name of that student.
+;; \param student-table:	List of all enrolled students in our database.
+;; \param student:			Unique identifier for a student in the database.
+(define getstudentname
+	(lambda (student-table)
+		(lambda (student)
+			(cadr ((getrecord student-table) student))
+)))
 
 ;; Counts the total number of classes that have been graded for the given student.
 ;; \param grade-table:	Table of grades in our database.
