@@ -1,0 +1,44 @@
+\documentclass{jhwhw}
+\author{Ian Malerich}
+\title{Homework: Lambda Calculus \& Racket}
+
+\begin{document}
+
+\problem{}
+
+Given
+
+\begin{tabular}{r@{:}l}
+	0&\ \lambda f.\lambda x.x \\
+	succ&\ \lambda n.\lambda f. \lambda x.$(f ((n f) x))$ \\
+	n&\ if n is a natural number then its semantics is the result of n applications of succ on 0. \\
+	true&\ \lambda x.\lambda y.x \\
+	false&\ \lambda x.\lambda y.y \\
+	second&\ \lambda x.\lambda y. \lambda z.y \\
+	g&\ \lambda n.$((n second) false)$ \\
+\end{tabular}
+\bigbreak
+\raggedright
+What is the result of
+
+\begin{enumerate}
+	\item (g n) when n is 0.
+	\item (g n) when n results from some application succ on 0.
+	\item What mathematical/logical operation is computed by g.
+\end{enumerate}
+
+\solution
+
+\problem{}
+
+Consider the following \lambda$-expression$:
+
+\begin{gather*}
+Y : \lambda$t.($\lambda$x.(t (x x)) $\lambda$x.(t (x x)))$
+\end{gather*}
+\\
+Prove/disprove that (Y t) after application of several \beta$-reductions results in (t (Y t))$.
+
+\solution
+
+\end{document}
