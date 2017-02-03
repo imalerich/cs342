@@ -60,8 +60,32 @@
 (define coursesgraded
 	(lambda (grade-table)
 		(lambda (student)
-			0
-)))
+			(if (null? grade-table)
+				0 ;; Empty table has no courses for this student.
+				(if (equal? (cadr (car grade-table)) student)
+					;; This is one of the current students courses, increment courses graded.
+					(+ 1 ((coursesgraded (cdr grade-table)) student))
+					;; else don't count this class, only consider the remainder of the list.
+					((coursesgraded (cdr grade-table)) student)
+)))))
+
+;; Computes the total number of quality points a student has earned in the given grade-table.
+;; This searches the grade-table for each class the given student has taken, pulls their letter
+;; grade from the table, converts it to a GPA, and returns the sum of all such classes.
+;; \param grade-table:	Table of grades in our database.
+;; \param student:		Unique identifier for a student in the database.
+;; \return:				The total number of quality points earned by the student.
+(define qualitypoints
+	(lambda (grade-table)
+		(lambda (student)
+			(if (null? grade-table)
+				0 ;; No more grades to check.
+				(if (equal? (cadr (car grade-table)) student) ;; This grade is associated with the given student.
+					;; Convert the letter grade to a scale, and sum it with the results from the rest of the list.
+					(+ (gradetogpa (caddr (car grade-table))) ((qualitypoints (cdr grade-table)) student))
+					;; Else just use the remainder of the list.
+					((qualitypoints (cdr grade-table)) student)
+)))))
 
 ;; Returns the numerical gpa value for the course for the given student in the gpa table.
 ;; \param grade-table:	Table of grades in our database.
