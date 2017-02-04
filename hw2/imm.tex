@@ -10,13 +10,13 @@
 Given
 
 \begin{tabular}{r@{:}l}
-	0&\ \lambda f.\lambda x.x \\
-	succ&\ \lambda n.\lambda f. \lambda x.$(f ((n f) x))$ \\
+	0&\ $\lambda$f.$\lambda$x.x \\
+	succ&\ $\lambda$n.$\lambda$f.$\lambda$x.(f ((n f) x)) \\
 	n&\ if n is a natural number then its semantics is the result of n applications of succ on 0. \\
-	true&\ \lambda x.\lambda y.x \\
-	false&\ \lambda x.\lambda y.y \\
-	second&\ \lambda x.\lambda y. \lambda z.y \\
-	g&\ \lambda n.$((n second) false)$ \\
+	true&\ $\lambda$x.$\lambda$y.x \\
+	false&\ $\lambda$x.$\lambda$y.y \\
+	second&\ $\lambda$x.$\lambda$y.$\lambda$z.y \\
+	g&\ $\lambda$n.((n second) false) \\
 \end{tabular}
 \bigbreak
 \raggedright
@@ -29,6 +29,91 @@ What is the result of
 \end{enumerate}
 
 \solution
+
+% Part A
+\part
+
+\raggedright
+	(g 0) \\
+	(g $\lambda$f.$\lambda$x.x) \\ 
+	(\lambda $n.((n second) false) $ $\lambda$f.$\lambda$x.x) \\
+	(($\lambda$f.$\lambda$x.x second) false) \\
+	($\lambda$x.x false) \\
+	false \\
+
+% Part B
+\part
+
+	First consider what is happening when n applications of succ are taken on 0. \\
+	\bigbreak
+	Consider n = 1 application of succ on 0. \\
+	(succ 0) \\
+	($\lambda$n.$\lambda$f.$\lambda$x.(f ((n f) x)) $\lambda$f.$\lambda$x.x) \\
+	$\lambda$f.$\lambda$x.(f (($\lambda$f.$\lambda$x.x f) x) \\
+	$\lambda$f.$\lambda$x.(f ($\lambda$x.x x)) \\
+	$\lambda$f.$\lambda$x.(f x) \\
+
+	\bigbreak
+	Now consider n = 2 applications of succ on 0. \\
+	(succ (succ 0)) \\
+	(succ $\lambda$f.$\lambda$x.(f x)) \\
+	($\lambda$n.$\lambda$f.$\lambda$x.(f ((n f) x)) $\lambda$f.$\lambda$x.(f x)) \\
+	$\lambda$f.$\lambda$x.(f (($\lambda$f.$\lambda$x.(f x) f) x)) \\
+	$\lambda$f.$\lambda$x.(f ($\lambda$x.(f x) x)) \\
+	$\lambda$f.$\lambda$x.(f (f x)) \\
+
+	\bigbreak
+	As discussed in class, this pattern will continue. \\
+	That is, n applications of succ on 0 can be written as the following. \\
+	$\lambda$f.$\lambda$x.($f^1$ ($\ldots$ ($f^n$ x))) \\
+	Note the superscript denotes the occurrence index for the lambda function f. \\
+
+	\bigbreak
+	Now let us consider the problem at hand.
+	(g n) \\
+	(g (succ_1$ (\ldots (succ_n$ 0))))$ \\
+	(\lambda $n.((n second) false) (succ_1$ (\ldots (succ_n$ 0))))$ \\
+	(((succ_1$ (\ldots (succ_n$ 0))) second) false)$ \\
+	(($\lambda$f.$\lambda$x.($f^1$ ($\ldots$ ($f^n$ x))) second) false)\\
+	(($\lambda$f.$\lambda$x.($f^1$ ($\ldots$ ($f^n$ x))) $\lambda$x.$\lambda$y.$\lambda$z.y) false)\\
+	As these are lambda expressions, subscripts denote both the number of occurrences as well as 
+	the uniqueness of each lambda variable. \\
+	($\lambda$x.($\lambda$x$_1$.$\lambda$y$_1$.$\lambda$z$_1$.y$_1$ 
+		($\ldots$ ($\lambda$x$_n$.$\lambda$y$_n$.$\lambda$z$_n$.y$_n$ x))) false) \\
+	($\lambda$x$_1$.$\lambda$y$_1$.$\lambda$z$_1$.y$_1$ 
+		($\ldots$ ($\lambda$x$_n$.$\lambda$y$_n$.$\lambda$z$_n$.y$_n$ false))) \\
+	($\lambda$x$_1$.$\lambda$y$_1$.$\lambda$z$_1$.y$_1$ ($\ldots$ 
+		($\lambda$x$_{n-1}$.$\lambda$y$_{n-1}$.$\lambda$z$_n$.y$_{n-1}$ 
+		($\lambda$x$_n$.$\lambda$y$_n$.$\lambda$z$_n$.y$_n$ 
+		false))) \\
+	($\lambda$x$_1$.$\lambda$y$_1$.$\lambda$z$_1$.y$_1$ ($\ldots$ 
+		($\lambda$x$_{n-1}$.$\lambda$y$_{n-1}$.$\lambda$z$_n$.y$_{n-1}$ 
+		$\lambda$y$_n$.$\lambda$z$_n$.y$_n$))) \\
+	Note that $\lambda$y.$\lambda$z.y is defined as `true'. \\
+	($\lambda$x$_1$.$\lambda$y$_1$.$\lambda$z$_1$.y$_1$ ($\ldots$ 
+		($\lambda$x$_{n-1}$.$\lambda$y$_{n-1}$.$\lambda$z$_n$.y$_{n-1}$ 
+		true))) \\
+	If n = 1 we would be done here and have a result of 'true' \\ (as the 1$\ldots$n-1 terms would not exist). \\
+	If n $\textgreater$ 1, we apply another beta reduction \\
+	($\lambda$x$_1$.$\lambda$y$_1$.$\lambda$z$_1$.y$_1$ ($\ldots$ 
+		($\lambda$x$_{n-2}$.$\lambda$y$_{n-2}$.$\lambda$z$_n$.y$_{n-2}$ 
+		$\lambda$y$_{n-1}$.$\lambda$z$_n$.y$_{n-1}$)) \\
+	($\lambda$x$_1$.$\lambda$y$_1$.$\lambda$z$_1$.y$_1$ ($\ldots$ 
+		($\lambda$x$_{n-2}$.$\lambda$y$_{n-2}$.$\lambda$z$_n$.y$_{n-2}$ 
+		true))) \\
+	($\lambda$x$_1$.$\lambda$y$_1$.$\lambda$z$_1$.y$_1$ ($\ldots$ 
+		$\lambda$y$_{n-2}$.$\lambda$z$_n$.y$_{n-2}$)) \\
+	($\lambda$x$_1$.$\lambda$y$_1$.$\lambda$z$_1$.y$_1$ ($\ldots$ 
+		($\lambda$x$_{n-3}$.$\lambda$y$_{n-3}$.$\lambda$z$_n$.y$_{n-3}$ 
+		true))) \\
+	This trend would continue recursively until it resolves to true. \\
+
+% Part C
+\part
+
+	As g resolves to false when n = 0, and true otherwise \\
+	it then computes n $\textgreater$ 0 or n $\neq$ 0
+	on the domain of natural numbers.
 
 \problem{}
 
@@ -54,7 +139,7 @@ Setup \\
 	Claim \\
 		\setlength\parindent{24pt}
 		let n $\in$ $\lamtbb{N}$ \\
-		After n $\beta$-reductions of (t (Q Q)) denoted R \\
+		If n $\beta$-reductions are taken of (t (Q Q)) denoted R \\
 		then R $\neq$ (t (Y t)) \\
 	 
 	\bigbreak
@@ -76,8 +161,7 @@ Setup \\
 		We have ($t_0$ ($t_1$ ($\ldots$ ($t_n$ (Q Q))))) $\neq$ (t (Y t)) \\
 		Apply a single $\beta$-reduction to the left hand side producing \\
 		($t_0$ ($t_1$ ($\ldots$ ($t_n$ ($t_{n+1}$ (Q Q)))))) \\
-		(Q Q) $\neq$ (Y t) as proven in the base case. \\
-		($t_0$ ($t_1$ ($\ldots$ ($t_n$ ($t_{n+1}$ (X)))))) $\neq$ (t (X)) for any X \\
+		Note that ($t_0$ ($t_1$ ($\ldots$ ($t_n$ ($t_{n+1}$ (X)))))) $\neq$ (t (X)) for any X \\
 		as ($t_n$ (\ldots)) is not a lambda expression that can be $\beta$-reduced. \\
 		Therefore ($t_0$ ($t_1$ ($\ldots$ ($t_n$ ($t_{n+1}$ (Q Q)))))) $\neq$ (t (Y t)) \square\\
 
