@@ -127,43 +127,23 @@ Prove/disprove that (Y t) after application of several \beta$-reductions results
 
 \solution
 
-Setup \\
-	\setlength\parindent{24pt}
-	We are given (Y t), apply the definition of Y to this given lambda expression. \\
-	(\lambda$t.($\lambda$x.(t (x x)) $\lambda$x.(t (x x)))$ $ t)$ \\
-	Denote Q: \lambda $x.(t (x x))$ \\
-	Note that (Q Q) after a single \beta$-reduction results in (t (Q Q))$ \\
-	Thus we are starting with (t (Q Q)).
+First expand (Y t) \\
+$(\lambda t.(\lambda x.(t\; (x\; x))\; \lambda x.(t\; (x\; x)))\; t)$ \\
+Apply our first $\beta$-reduction: \\
+$(\lambda x.(t\; (x\; x))\; \lambda x.(t\; (x\; x)))$ \\
+Apply a second $\beta$-reduction: \\
+$(t\; (\lambda x.(t\; (x\; x))\; \lambda x.(t\; (x\; x))))$ \\
 
-	\bigbreak
-	\setlength\parindent{0pt}
-	Claim \\
-		\setlength\parindent{24pt}
-		let n $\in$ $\lamtbb{N}$ \\
-		If n $\beta$-reductions are taken of (t (Q Q)) denoted R \\
-		then R $\neq$ (t (Y t)) \\
-	 
-	\bigbreak
-	\setlength\parindent{0pt}
-	Proof by Induction on n \\
-	\setlength\parindent{24pt}
-		Base Case (n = 0) \\
-		\setlength\parindent{48pt}
-		This is true as Q $\neq$ Y $\wedge$ Q $\neq$ t \\
-		Thus (Q Q) $\neq$ (Y t) \\
-		Therefore (t (Q Q)) $\neq $ (t (Y t)) \\
-		\setlength\parindent{24pt}
-		Induction Hypothesis \\
-		\setlength\parindent{48pt}
-		Assume ($t_0$ ($t_1$ ($\ldots$ ($t_n$ (Q Q))))) $\neq$ (t (Y t)) \\
-		\setlength\parindent{24pt}
-		Induction Step \\
-		\setlength\parindent{48pt}
-		We have ($t_0$ ($t_1$ ($\ldots$ ($t_n$ (Q Q))))) $\neq$ (t (Y t)) \\
-		Apply a single $\beta$-reduction to the left hand side producing \\
-		($t_0$ ($t_1$ ($\ldots$ ($t_n$ ($t_{n+1}$ (Q Q)))))) \\
-		Note that ($t_0$ ($t_1$ ($\ldots$ ($t_n$ ($t_{n+1}$ (X)))))) $\neq$ (t (X)) for any X \\
-		as ($t_n$ (\ldots)) is not a lambda expression that can be $\beta$-reduced. \\
-		Therefore ($t_0$ ($t_1$ ($\ldots$ ($t_n$ ($t_{n+1}$ (Q Q)))))) $\neq$ (t (Y t)) \square\\
+\bigbreak
+
+Now consider (t (Y t)) \\
+We can $\beta$-reduce outside then inside or inside then outside, in this case, do the inside first. 
+We already know what (Y t) $\beta$-reduces to from the above, thus we produce: \\
+$(t\; (\lambda x.(t\; (x\; x))\; \lambda x.(t\; (x\; x))))$ \\
+
+\bigbreak
+
+Note that this is equivalent to the $\beta$-reduction we found for (Y t), thus 
+after the given $\beta$-reductions, (Y t) will result in (t (Y t)). \square
 
 \end{document}
