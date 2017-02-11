@@ -1,7 +1,6 @@
 #lang racket
-(provide (all-defined-out)) ;; for us to test
-;;(require racket/trace)		;; in case you want to use tracing
-(require "DB.rkt")			;; to access the database definitions in DB.rkt
+(provide (all-defined-out))	;; for us to test
+(require "DB.rkt")		;; to access the database definitions in DB.rkt
 
 ;;;;;;;;;;;;;;;;;;
 ;;	3 (a)	;;
@@ -10,7 +9,7 @@
 ;; Apply input function f to each record in the given student-table, and return
 ;; the results of the operation as a new list.
 ;; \param student-table:	List of student records.
-;; \param f:				Function to be applied to each student record.
+;; \param f:			Function to be applied to each student record.
 (define applyonstds
     (lambda (student-table)
 	(lambda (f)
@@ -33,7 +32,7 @@
 	(cons 
 	    (car student-record)	;; Keep the first element the same.
 	    (cons			;; Note the second argument must be a list.
-		(cadr student-record)						;; Keep the second element the same.
+		(cadr student-record)				;; Keep the second element the same.
 		(list (immlength (caddr student-record)))	;; Replace the last element with its length
 ))))
 
@@ -50,12 +49,12 @@
 		(car student-record)
 		(cons
 		    (cadr student-record)
-		    (list ( /
+		    (list (roundgpa ( /
 			;; Divide the total quality points...
 			((qualitypoints grade-table) (car  student-record))
 			;; ... by the total number of classes graded.
 			((coursesgraded grade-table) (car  student-record))
-)))))))
+))))))))
 
 ;;;;;;;;;;;;;;;;;;
 ;;	3 (d)	;;
@@ -89,6 +88,15 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;	Utilities	;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Takes a single numerical value (the gpa) as input, 
+;; and outputs that value rounded to two decimal places.
+;; e.g. If provided 2.6666666666, 2.67 will be returned.
+;; \param gpa The gpa to be rounded.
+(define roundgpa
+    (lambda (gpa)
+	(/ (round (* gpa 100)) 100)
+))
 
 ;; Implements the findstudentwithgpa function described in the assignment specification.
 ;; This is used for testing the gradebook function.
