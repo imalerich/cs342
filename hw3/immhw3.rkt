@@ -7,7 +7,7 @@
 
 (define synchk
     (lambda (prog)
-      #T
+	(expr? prog)
 ))
 
 ;;;;;;;;;;;;;;;;;;
@@ -21,12 +21,31 @@
 )))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;	Utilities	;;
+;;	Syntax Checking	;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (expr? e)
-    #T
-)
+    (or
+	(number? e)	;; Either a Number
+	(variable? e)	;; or a Variable
+	(opexpr? e)	;; or an OpExpr.
+))
+
+(define (opexpr? e)
+    (or
+	(arithexpr? e)	;; Either an ArithExpr
+	(condexpr? e)	;; or CondExpr
+	(varexpr? e)	;; or VarExpr.
+))
+
+(define (arithexpr? e)
+    (and
+	(list? e)		;; Must be a list
+	(equal? (length e) 3)	;; of length 3.
+	(op? (car e))		;; First element is an operator,
+	(expr? (cadr e))	;; followed by the first operand
+	(expr? (caddr e))	;; followed by the second operand.
+))
 
 (define (op? o)
     (or 

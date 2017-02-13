@@ -1,18 +1,6 @@
 #lang racket
 (provide (all-defined-out))
 
-;; This is for eval
-(define prog2
-  '(var ((x z) (y (+ x 1)))
-	(+ x y)
-))
-
-;; Sample Run: Returns 21
-;; (eval prog2 '((z 10)))
-
-;; Sample Run: Returns '(Cannot Evaluate)
-;; (eval prog2 '()))
-
 ;;;;;;;;;;;;;;;;;;
 ;;	CCond	;;
 ;;;;;;;;;;;;;;;;;;
@@ -106,6 +94,31 @@
 (define op6 'x)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;	ArithExpr	;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; True
+(define ae0 '(+ 3 2))
+
+;; True
+(define ae1 '(- x y))
+
+;; True
+(define ae2 '(* 3 z))
+
+;; True
+(define ae3 '(/ y x))
+
+;; True
+(define ae4 '(/ (+ 2 (* 6 4)) x))
+
+;; False (needs one more argument)
+(define ae5 '(/ 2))
+
+;; False (needs one less argument)
+(define ae6 '(/ 2 3 4))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;	VarAssign	;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -182,3 +195,24 @@
 (define ccondexpr8
     (list ccond6 3 4)
 )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;	Programs	;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; True
+(define prog2
+  '(var ((x z) (y (+ x 1)))
+	(+ x y)
+))
+
+(define prog3
+  '(var ((x z) (y (+ x 1)))
+	(+ x y) addinggarbage
+))
+
+;; Sample Run: Returns 21
+;; (eval prog2 '((z 10)))
+
+;; Sample Run: Returns '(Cannot Evaluate)
+;; (eval prog2 '()))
