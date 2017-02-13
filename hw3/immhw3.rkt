@@ -29,10 +29,64 @@
 )
 
 (define (op? o)
-    (or (equal? o '+)
+    (or 
+	(equal? o '+)
 	(equal? o '-)
 	(equal? o '*)
 	(equal? o '/)
+))
+
+(define (condexpr? c)
+    (and
+	(list? c)		;; Must be a list
+	(equal? (length c) 3)	;; of length 3.
+	(ccond? (car c))	;; First element is a CCond,
+	(expr? (cadr c))	;; followed by an expression evaluated on true
+	(expr? (caddr c))	;; and an expression evaluated on false.
+))
+
+(define (ccond? c)
+    (if (list? c)
+	(cond
+	    [(bcond? c) #T]			;; Might be a BCond...
+	    [(and 
+	       (equal? (length c) 3)		;; Otherwise, if it is a list of length 3
+	       (or (equal? (car c) 'or)		;; could be an 'OR' expression,
+		    (equal? (car c) 'and))	;; or an 'AND' expression,
+	       (ccond? (cadr c))		;; both of which have a first argument of type CCond
+	       (ccond? (caddr c))		;; and a second argument of type ccond.
+	    ) #T]				
+	    [(and
+		(equal? (length c) 2)		;; Else if it is a list of length 2
+		(equal? (car c) 'not)		;; it must be a NOT expression
+		(ccond? (cadr c))		;; followed ba a CCond
+	    ) #T]				
+	    [else #F]				;; Conditions not satisfied, not a CCond.
+	)
+
+	#F					;; A CCond must be a list.
+))
+
+(define (bcond? b)
+    (if (list? b)
+	(if (equal? (length b) 3)
+	    (and 
+		(bcondop? (car b))	;; First element should be a BCond Operator (gt, lt, eq),
+		(expr? (cadr b))		;; the second should be an expression,
+		(expr? (caddr b)))	;; as should the third,
+	    #F				;; and we shouldn't have any elements after that.
+	    )
+	#F				;; A BCond must be a list.
+))
+
+;; Checks if the input item is 
+;; any of the constants 'gt (greater than)', 'lt (less than)', 
+;; or 'eq (equal to)'.
+(define (bcondop? o)
+    (or 
+	(equal? o 'gt)
+	(equal? o 'lt)
+	(equal? o 'eq)
 ))
 
 (define (varexpr? v)
