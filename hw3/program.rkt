@@ -21,8 +21,9 @@
 
 ;; Invalid var assignment, 
 ;; but the variable isn't actually used anywhere
-;; what should it do (Cannot Evaluate)?
-(define eval4 '(var (z totally_good_code) 3))
+;; if do_not_define is not defined, should 
+;; return '(Cannot Evaluate).
+(define eval4 '(var ((z do_not_define)) 3))
 
 ;; Should return 0.
 (define eval5 '(var ((x 3)) ((gt x 4) 1 0)))
@@ -35,6 +36,18 @@
 ;; A little simpler test with no variables.
 ;; Should return 1.
 (define eval7 '((gt 3 2) 1 0))
+
+;; (x + y) / (3 * z)
+(define eval8 '(
+    / (+ x y) (* 3 z)
+))
+
+;; Should return '(Cannot Evaluate)
+;; as even though garbage is not executed
+;; it is still an invalid program.
+(define eval9 '(
+    (gt 3 2) 0 garbage
+))
 
 ;;;;;;;;;;;;;;;;;;
 ;;	CCond	;;

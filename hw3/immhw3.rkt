@@ -8,6 +8,10 @@
 ;;	1	;;
 ;;;;;;;;;;;;;;;;;;
 
+;; Validate the syntax of the input program.
+;; This does not care if variables are free or not.
+;; \param	The program we wish to evaluate.
+;; \return	True if the program is syntactically valid, false otherwise.
 (define synchk
     (lambda (prog)
 	(expr? prog)
@@ -17,9 +21,19 @@
 ;;	2	;;
 ;;;;;;;;;;;;;;;;;;
 
+;; Evaluates the input program in the given environment.
+;; \param prog	Program which we wish to evaluate.
+;; \param env	The environment in which to run the given program.
+;; \return	The evaluation of the given program if it can be 
+;;		evaluated, else returnns '(Cannot Evaluate).
+;;		The syntax of the program must be correct in order
+;;		for the program to be evaluated, further all free
+;;		variables in the program must be provided.
 (define (eval prog env)
-    (if (env.valid? env)	;; If we have a vaild environment
-	((eval.expr prog) env)	;; go ahead and do evaluation
+    (if (and 
+	    (env.valid? env)	;; If we have a vaild environment
+	    (synchk prog))	;; and valid syntax
+	((eval.expr prog) env)	;; go ahead and do evaluation,
 	ERR			;; else display an error.
 ))
 
@@ -67,6 +81,13 @@
 ;; Evaluation ;;
 ;;;;;;;;;;;;;;;;
 
+;; Root abstraction for program evaluation.
+;; Determines which type of evaluation we need to start with
+;; and then start the recursing through the expression.
+;; If the expression cannot be evaluated, ERR is returned.
+;; \param expr	The expression with which to evaluate.
+;; \param env	The environment the expression is to be evaluated in.
+;; \return	The results of the expression, ERR if an error occurs.
 (define eval.expr
     (lambda (expr)
 	(lambda (env)
@@ -99,6 +120,11 @@
 		)
 ))))
 
+;; Redirect the expression to the appropriate operator handler.
+;; If the input expression is not an ArithExpr, CondExpr, or VarExpr
+;; an error will be returned.
+;; \param expr	Operator expression to evaluate.
+;; \param env	The environment in which to evaluate the expression.
 (define eval.opexpr
     (lambda (expr)
 	(lambda (env)
@@ -133,18 +159,28 @@
 ;; Conditional Evaluation ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; Takes a conditional expression of form (CCond Expr1 Expr2)
+;; evaluates CCond to TRUE or FALSE,
+;; if true, returns the evaluation of Expr1, else if false
+;; returns the evaluation of Expr2.
 (define eval.condexpr
     (lambda (expr)
 	(lambda (env)
-	    ;; Evaluate the given conditional in our environment.
-	    (if ((eval.ccond (car expr)) env)
-		;; If TRUE, evaluate the first expression,
-		(eval (cadr expr) env)
-		;; else evaluate the second.
-		(eval (caddr expr) env)
-))))
+	    (if (and ;; Regardless of conditional result, both expressions should evaluate to numbers.
+		  (number? (eval (cadr expr) env))
+		  (number? (eval (caddr expr) env)))
+		;; Evaluate the given conditional in our environment.
+		(if ((eval.ccond (car expr)) env)
+		    ;; If TRUE, evaluate the first expression,
+		    (eval (cadr expr) env)
+		    ;; else evaluate the second.
+		    (eval (caddr expr) env))
+		ERR) ;; If either expression does not evaluate, return an error.
+)))
 
 ;; Evaluates a conditional expression to TRUE or FALSE.
+;; \param expr	Valid conditional expression to be evaluated.
+;; \param env	The environment with which to evaluate.
 (define eval.ccond
     (lambda (expr)
 	(lambda (env)
@@ -241,6 +277,8 @@
 ;; Syntax Checking ;;
 ;;;;;;;;;;;;;;;;;;;;;
 
+;; Is the input expression valid?
+;; \param e	The expression to check.
 (define (expr? e)
     (or
 	(number? e)	;; Either a Number
@@ -248,6 +286,8 @@
 	(opexpr? e)	;; or an OpExpr.
 ))
 
+;; Is the input operator expression valid?
+;; \param e Operator expression to check.
 (define (opexpr? e)
     (or
 	(arithexpr? e)	;; Either an ArithExpr
@@ -255,6 +295,8 @@
 	(varexpr? e)	;; or VarExpr.
 ))
 
+;; Is the input arithmetic expression valid?
+;; \param e Arithmetic expression to check.
 (define (arithexpr? e)
     (and
 	(list? e)		;; Must be a list
@@ -264,6 +306,8 @@
 	(expr? (caddr e))	;; followed by the second operand.
 ))
 
+;; Is the given input an operator?
+;; \param o Operator to check.
 (define (op? o)
     (or 
 	(equal? o '+)
@@ -272,6 +316,9 @@
 	(equal? o '/)
 ))
 
+
+;; Is the input expression a conditional expression?
+;; \param c Expression to check.
 (define (condexpr? c)
     (and
 	(list? c)		;; Must be a list
@@ -281,6 +328,9 @@
 	(expr? (caddr c))	;; and an expression evaluated on false.
 ))
 
+;; Check whether or not the input CCond can be considered
+;; an or, and, not, or binary conditional.
+;; \param c Expression to be checked.
 (define (ccond? c)
     (if (list? c)
 	(cond
@@ -303,6 +353,8 @@
 	#F					;; A CCond must be a list.
 ))
 
+;; Check whether or not the input conditional is a binary conditional.
+;; \param b The expression to check.
 (define (bcond? b)
     (if (list? b)
 	(if (equal? (length b) 3)
@@ -325,6 +377,8 @@
 	(equal? o 'eq)
 ))
 
+;; Checks whether the input item is a variable expression.
+;; \param Input item to check.
 (define (varexpr? v)
     (if (list? v)
 	(if (equal? (length v) 3)
@@ -338,6 +392,8 @@
 	#F				;; It certainly at least has to be a list.
 ))
 
+;; Checks whether or not the input variable assignment is valid.
+;; \param v Variable assignment to check.
 (define (varassign? v)
     (if (list? v)
 	(if (null? v)
@@ -349,7 +405,8 @@
 	#F
 ))
 
-;; Is the input list of the form (Variable Expr)
+;; Is the input pair of the form (Variable Expr)
+;; \param v Ordered pair to check.
 (define (variableexpr? v)
     (if (list? v)
 	(cond 
@@ -363,6 +420,9 @@
 	#F				;; Not a list? Not a Variable Assignment.
 ))
 
+;; Is the input item a valid symbol that may be used 
+;; as a variable name?
+;; \param v Candidate for variable name.
 (define (variable? v)
     (symbol? v)
 )
