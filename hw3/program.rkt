@@ -1,6 +1,41 @@
 #lang racket
 (provide (all-defined-out))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;	Evaluate	;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Environment we will use for testing.
+(define env '(
+    (x 3) (y 4) (z 5)
+))
+
+;; Some simple test programs.
+(define eval0 '(+ 3 4))
+
+(define eval1 '(+ x y))
+
+(define eval2 '(+ z 1))
+
+(define eval3 '(var ((z 3)) (+ z x)))
+
+;; Invalid var assignment, 
+;; but the variable isn't actually used anywhere
+;; what should it do (Cannot Evaluate)?
+(define eval4 '(var (z totally_good_code) 3))
+
+;; Should return 0.
+(define eval5 '(var ((x 3)) ((gt x 4) 1 0)))
+
+;; Same as before, but x must be defined 
+;; as an input parameter.
+;; If x > 3 return 1, else return 0.
+(define eval6 '((gt x 3) 1 0))
+
+;; A little simpler test with no variables.
+;; Should return 1.
+(define eval7 '((gt 3 2) 1 0))
+
 ;;;;;;;;;;;;;;;;;;
 ;;	CCond	;;
 ;;;;;;;;;;;;;;;;;;
