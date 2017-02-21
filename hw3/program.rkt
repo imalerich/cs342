@@ -1,9 +1,30 @@
 #lang racket
 (provide (all-defined-out))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;	Evaluate	;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;
+;; Provided Programs ;;
+;;;;;;;;;;;;;;;;;;;;;;;
+
+;; True
+(define prog2
+  '(var ((x z) (y (+ x 1)))
+	(+ x y)
+))
+
+(define prog3
+  '(var ((x z) (y (+ x 1)))
+	(+ x y) addinggarbage
+))
+
+;; Sample Run: Returns 21
+;; (eval prog2 '((z 10)))
+
+;; Sample Run: Returns '(Cannot Evaluate)
+;; (eval prog2 '()))
+
+;;;;;;;;;;;;;;
+;; Evaluate ;;
+;;;;;;;;;;;;;;
 
 ;; Environment we will use for testing.
 (define env '(
@@ -49,9 +70,15 @@
     (gt 3 2) 0 garbage
 ))
 
-;;;;;;;;;;;;;;;;;;
-;;	CCond	;;
-;;;;;;;;;;;;;;;;;;
+;; '(Cannot Evaluate)
+;; Variable assignment expressions should not be empty.
+(define eval10 '(
+    var () 3
+))
+
+;;;;;;;;;;;
+;; CCond ;;
+;;;;;;;;;;;
 
 ;; All tests of the form bcondX
 ;; should also pass the ccond? test.
@@ -81,9 +108,9 @@
 ;; False (ccond0 is a constant, not a reference)
 (define ccond7 '(and ccond0))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;	BinaryCond	;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;
+;; BinaryCond ;;
+;;;;;;;;;;;;;;;;
 
 ;; True
 (define bcond0 '(gt 3 3))
@@ -92,7 +119,7 @@
 (define bcond1 '(lt 4 5))
 
 ;; True
-(define bcond2 '(eq (x 3) 3))
+(define bcond2 '(eq (var ((x 3)) x) 3))
 
 ;; False
 (define bcond3 '(gt 3 4 3))
@@ -103,9 +130,9 @@
 ;; False
 (define bcond5 '(gteq 3 4 3))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;	Variables	;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;
+;; Variables ;;
+;;;;;;;;;;;;;;;
 
 ;; True
 (define var0 'x)
@@ -116,9 +143,9 @@
 ;; False
 (define var2 '(3))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;	Operators	;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;
+;; Operators ;;
+;;;;;;;;;;;;;;;
 
 ;; True
 (define op0 '+)
@@ -141,9 +168,9 @@
 ;; False
 (define op6 'x)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;	ArithExpr	;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;
+;; ArithExpr ;;
+;;;;;;;;;;;;;;;
 
 ;; True
 (define ae0 '(+ 3 2))
@@ -166,38 +193,41 @@
 ;; False (needs one less argument)
 (define ae6 '(/ 2 3 4))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;	VarAssign	;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;
+;; VarAssign ;;
+;;;;;;;;;;;;;;;
 
 ;; True
-(define varassign0
+(define varassignseq0
   '((x 3) (y 2) (z 6))
 )
 
 ;; True
-(define varassign1
+(define varassignseq1
   '((x 3))
 )
 
-;; True
-(define varassign2
+;; False
+;; VarAssignSeq must have at least
+;; one (Variable Expr) within according
+;; to the specification.
+(define varassignseq2
   '()
 )
 
 ;; False
-(define varassign3
+(define varassignseq3
   '((x 3 2))
 )
 
 ;; False
-(define varassign4
+(define varassignseq4
   '((x 3) 4)
 )
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;	CCondExpr	;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;
+;; CCondExpr ;;
+;;;;;;;;;;;;;;;
 
 ;; True
 (define ccondexpr0
@@ -243,24 +273,3 @@
 (define ccondexpr8
     (list ccond6 3 4)
 )
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;	Programs	;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; True
-(define prog2
-  '(var ((x z) (y (+ x 1)))
-	(+ x y)
-))
-
-(define prog3
-  '(var ((x z) (y (+ x 1)))
-	(+ x y) addinggarbage
-))
-
-;; Sample Run: Returns 21
-;; (eval prog2 '((z 10)))
-
-;; Sample Run: Returns '(Cannot Evaluate)
-;; (eval prog2 '()))

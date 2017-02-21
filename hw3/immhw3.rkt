@@ -383,9 +383,11 @@
     (if (list? v)
 	(if (equal? (length v) 3)
 	    (and (and
-		(equal? (car v) 'var)	;; A variable expression is of the form (var
-		(varassign? (cadr v))	;; followed by a VarAssign
-		(expr? (caddr v))	;; then Expr)
+		(equal? (car v) 'var)			;; A variable expression is of the form (var
+		(list? (cadr v))			;; followed by a list VarAssign
+		(not (equal? (length (cadr v)) 0))	;; with at least one assignment in it
+		(varassign? (cadr v))			;; that is syntactically valid
+		(expr? (caddr v))			;; followed by an expression.
 	    ))
 	    #F 				;; with nothing else in it.
 	)
