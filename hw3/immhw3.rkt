@@ -195,7 +195,7 @@
 			((eval.ccond (cadr expr)) env)
 			((eval.ccond (caddr expr)) env)
 		)]
-		[(equal? (car expr) 'or)
+		[(equal? (car expr) 'not)
 		    (not
 			((eval.ccond (cadr expr)) env)
 		)]
