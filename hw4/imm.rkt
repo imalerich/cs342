@@ -13,8 +13,10 @@
 ;; \param	The program we wish to evaluate.
 ;; \return	True if the program is syntactically valid, false otherwise.
 (define (synchk prog)
-    (expr? prog)
-)
+    (and
+	(expr? prog) ;; Check that the grammar is correct
+	(meta.expr.chk? prog '()) ;; and check that meta syntax rules are met.
+))
 
 ;;;;;;;;;;;;;;;;;;
 ;;	2	;;
@@ -34,6 +36,116 @@
 	    (synchk prog))	;; and valid syntax
 	((eval.expr prog) env)	;; go ahead and do evaluation,
 	ERR			;; else display an error.
+))
+
+;;;;;;;;;;;;;;;;;
+;; Meta Syntax ;;
+;;;;;;;;;;;;;;;;;
+
+;; Assumes that the input program is syntactically valid.
+;; This method will then determine whether or not the given
+;; meta syntax requirements are met.
+;; 	1. Any function called by ApplyF is defined.
+;;	2. The number of parameters used by ApplyF is correct.
+;; \param prog	Syntactically correct program to meta-evaluate.
+;; \param def	List of defined functions, each of the form (name num.param).
+(define (meta.expr.chk? expr def)
+    (cond
+	[(number? expr) #T]
+	[(variable? expr) #T]
+	[(opexpr? expr) (meta.op.chk? expr def)]
+	[(fexpr? expr)
+	    (and
+		(meta.expr.chk? (cadr (cadr expr))	;; Make sure our function call is solid,
+		    (add.def expr def))			;; 	and allow recursion.
+		(meta.expr.chk?				;; Make sure the remainder of the program is sweet.
+		    (caddr expr)			;; 	Recurse to the next expression,
+		    (add.def expr def))			;; 	and include our new function definition.
+	)]
+	[(applyf? expr)
+	    (defined? ;; Only need to check that the given function exists.
+		;; The function definition is given by its name and number of parameters.
+		(list (car (cadr expr)) (length (cadr (cadr expr))))
+		;; Check against the current list of defined functions.
+		def
+	)]
+	[else #F]
+))
+
+;; Add's the given function definition to the 
+;; given list of function definitions.
+;; \param fexpr	Function expression to add as function definition.
+;; \param def	Current list of function definitions.
+(define (add.def fexpr def)
+    (cons (list					;; Create the new function definition
+	    (car (car (cadr fexpr)))		;; containing the name of the function
+	    (length (cadr (car (cadr fexpr)))))	;; and the number of parameters.
+    def						;; Then add it to the list of defined functions.
+))
+
+;; Checks meta syntax requirements for an OpExpr.
+;; \param op	OpExpr we wish to check.
+;; \prama def	List of defined functions.
+(define (meta.op.chk? op def)
+    (cond
+	[(arithexpr? op) ;; ArithExpr has two referenced Expr's we're going to have to check.
+	    (and
+		(meta.expr.chk? (cadr op) def)	;; The first operand,
+		(meta.expr.chk? (caddr op) def) ;; and the second operand.
+	)]
+	[(condexpr? op) ;; Need to check the true case, false case, and conditional evaluation.
+	    (and
+		(meta.ccond.chk? (car op) def)	;; Conditional case,
+		(meta.expr.chk? (cadr op) def)	;; 'TRUE' case,
+		(meta.expr.chk? (caddr op) def) ;; and the 'FALSE' case.
+	)]
+	[(varexpr? op)
+	    (and
+		(meta.varassign.chk? (cadr op) def)
+		(meta.expr.chk? (caddr op) def)
+	)]
+	[else #F]
+))
+
+;; Checks meta syntax requirements for a CCond.
+;; \param ccond	Conditional to check.
+;; \param def	List of defined functions
+(define (meta.ccond.chk? ccond def)
+    (cond
+	[(or (equal? (car ccond) 'or)
+		(equal? (car ccond) 'and))
+	    (meta.ccond.chk? (cadr ccond) def)
+	    (meta.ccond.chk? (caddr ccond) def)]
+	[(equal? (car ccond) 'not) 
+	    (meta.ccond.chk? (cadr ccond) def)]
+	[else ;; Else it has to be a 'gt 'lt or 'eq.
+	    (and
+		(meta.expr.chk? (cadr ccond) def)
+		(meta.expr.chk? (caddr ccond) def)
+	)]
+))
+
+;; Checks meta syntax requirements for a variable assignment.
+;; \param var	Variable assignement to check (list of elements of form (Variable Expr).
+;; \param def	List of currently defined functions.
+(define (meta.varassign.chk? var def)
+    (cond
+	[(null? var) #T]	;; Base case of recursion.
+	[else
+	    (meta.expr.chk? (cadr (car var)) def)	;; The front variable assignment expression must be valid,
+	    (meta.varassign.chk? (cdr var) def)		;; and recurse to the remainder of the list.
+]))
+
+;; Checks whether or not the given function
+;; (of the form (name num.param) is defined in the
+;; given function definitions list.
+;; \param fun Function definition to check existence of.
+;; \param List of defined functions.
+(define (defined? fun def)
+    (cond
+	[(null? def) #F]		;; If there are no elements to check, fun is undefined
+	[(equal? (car def) fun) #T]	;; else if the front of def is fun, then fun must be defined
+	[else (defined? fun (cdr def))]	;; else recurse to the tail of the list.
 ))
 
 ;;;;;;;;;;;;;;;;;
