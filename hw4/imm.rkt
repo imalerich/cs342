@@ -62,12 +62,14 @@
 		    (caddr expr)			;; 	Recurse to the next expression,
 		    (add.def expr def))			;; 	and include our new function definition.
 	)]
-	[(applyf? expr)
-	    (defined? ;; Only need to check that the given function exists.
-		;; The function definition is given by its name and number of parameters.
-		(list (car (cadr expr)) (length (cadr (cadr expr))))
-		;; Check against the current list of defined functions.
-		def
+	[(applyf? expr) ;; Need to check that the given function exists and all of it's parameters are valid.
+	    (and
+		(defined? 
+		    ;; The function definition is given by its name and number of parameters.
+		    (list (car (cadr expr)) (length (cadr (cadr expr))))
+		    ;; Check against the current list of defined functions.
+		    def)
+		(meta.args.chk? (cadr (cadr expr)) def) ;; Make sure all arguments are valid.
 	)]
 	[else #F]
 ))
@@ -82,6 +84,17 @@
 	    (length (cadr (car (cadr fexpr)))))	;; and the number of parameters.
     def						;; Then add it to the list of defined functions.
 ))
+
+;; Checks the meta syntax requirements for an argument list.
+;; \param args	List of arguments (as expressions) to be checked.
+;; \param def	Current list of function definitions.
+(define (meta.args.chk? args def)
+    (if (null? args)
+	#T					;; Nothing left to check, all good here.
+	(and
+	    (meta.expr.chk? (car args) def)	;; Check the front expression,
+	    (meta.args.chk? (cdr args) def)	;; then recurse to the tail of the list.
+)))
 
 ;; Checks meta syntax requirements for an OpExpr.
 ;; \param op	OpExpr we wish to check.
@@ -131,10 +144,10 @@
 (define (meta.varassign.chk? var def)
     (cond
 	[(null? var) #T]	;; Base case of recursion.
-	[else
+	[else (and
 	    (meta.expr.chk? (cadr (car var)) def)	;; The front variable assignment expression must be valid,
 	    (meta.varassign.chk? (cdr var) def)		;; and recurse to the remainder of the list.
-]))
+)]))
 
 ;; Checks whether or not the given function
 ;; (of the form (name num.param) is defined in the
