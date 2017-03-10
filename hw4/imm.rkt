@@ -188,18 +188,39 @@
 ;; Returns TRUE if the var is found as a key in the environment, FALSE otherwise.
 ;; \param env The environment to search through.
 ;; \param var The kep we are looking for in env.
-(define env.contains?
+(define env.contains.var?
     (lambda (env)
 	(lambda (var)
-	    (if (list? env)
-		(if (null? env)
-		    #F						;; Base case, variable not found.
-		    (if (equal? (car (car env)) var)
-			#T					;; Found the variable,
-			((env.contains? (cdr env)) var)	;; else keep recursing.
-		))
-		#F						;; Dude we at least need a list.
+	    (if (and (list? env) (not (null? env)))
+		(if (equal? (car (car env)) var)	;; (always fails if function is found)
+		    #T					;; Found the variable,
+		    ((env.contains.var? (cdr env)) var)	;; else keep recursing.
+		)
+		#F					;; Base case, variable not found.
 ))))
+
+;; Checks whether or not the environment contains the given function 
+;; application request.
+;; \param env	The environment we are looking in.
+;; \param fun	Function application we would like to know if is defined or not.
+;;		Should be of the form (FName (ARG0 ARG1 ...)).
+(define env.contains.fun?
+    (lambda (env)
+	(lambda (fun)
+	    (if (and (list? env) (not (null? env)))
+		;; Does the front function have the correct function name
+		;; and the correct number of parameters?
+		(if (and
+		    ;; Does the function names match?
+		    (equal? (car (car (car env))) (car fun))
+		    ;; Does the number of parameters match?
+		    (equal? (length (cadr fun)) (length (cadr (car (car env))))))
+			;; Found the function we are looking for,
+			#T
+			;; else keep recursing.
+			((env.contains.fun? (cdr env)) fun)
+		#F ;; Base case, function not found.
+)))
 
 ;;;;;;;;;;;;;;;;
 ;; Evaluation ;;
@@ -219,6 +240,7 @@
 		[(number? expr) (eval.number expr)]
 		[(variable? expr) ((eval.variable expr) env)]
 		[(opexpr? expr) ((eval.opexpr expr) env)]
+		[(fexpr? expr) ((eval.fexpr expr) env)]
 		[else ERR]
 ))))
 
@@ -278,6 +300,21 @@
 		)
 		ERR ;; Expressions do not result in numbers, cannot evaluate.
 ))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Function Evaluation ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; Evaluates an FExpr using the given environment.
+;; \param expr	Valid FExpr to be evaluated.
+;; \param env	Which environment should this be evaluated in?
+(define eval.fexpr
+    (lambda (expr)
+	(lambda (env)
+	    ;; Evaluate the tail expression, 
+	    ;; with the function definition added to the environment
+	    (eval.expr (caddr expr) (cons (cadr expr) env))
+)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Conditional Evaluation ;;
