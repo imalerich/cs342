@@ -32,8 +32,8 @@
 ;;		variables in the program must be provided.
 (define (eval prog env)
     (if (and 
-	    (env.valid? env)	;; If we have a vaild environment
-	    (synchk prog))	;; and valid syntax
+	    (env.valid? env))	;; If we have a vaild environment
+	    ;; (synchk prog))	;; and valid syntax
 	((eval.expr prog) env)	;; go ahead and do evaluation,
 	ERR			;; else display an error.
 ))
@@ -175,12 +175,22 @@
 	    (if (null? env)
 		#T ;; An empty list is a valid environment.
 		(and 
-		    (list? (car env))			;; First element must be a list
-		    (equal? (length (car env)) 2)	;; containing two elements.
-		    (number? (cadr (car env)))		;; Second must be a number (eager evaluation).
-		    (env.valid? (cdr env))		;; The remaining elemnts must also be valid.
+		    ;; The environment may contain variables and function definitions.
+		    (or (env.is.var? (car env)) (fassign? (car env)))
+		    ;; The remaining elements must also be a valid.
+		    (env.valid? (cdr env))
 	    ))
 	    #F	;; An environment must be a list by definition.
+)))
+
+;; Checks whether or not the given environment element is a variable.
+(define env.is.var?
+    (lambda (elem)
+	(and
+	    (list? elem)		;; First element must be a list
+	    (equal? (length elem) 2)	;; containing two elements.
+	    (variable? (car elem))	;; The first is the variable definition.
+	    (number? (cadr elem))	;; Second must be a number (eager evaluation).
 )))
 
 ;; Checks whether or not the environment contains the given variable,
@@ -199,27 +209,77 @@
 		#F					;; Base case, variable not found.
 ))))
 
-;; Checks whether or not the environment contains the given function 
-;; application request.
+;; Returns the environment in which the given function application should be evaluated.
+;; This will be everything in the environment which follows the function definition.
 ;; \param env	The environment we are looking in.
 ;; \param fun	Function application we would like to know if is defined or not.
 ;;		Should be of the form (FName (ARG0 ARG1 ...)).
-(define env.contains.fun?
+(define get.fun.env
     (lambda (env)
 	(lambda (fun)
 	    (if (and (list? env) (not (null? env)))
 		;; Does the front function have the correct function name
 		;; and the correct number of parameters?
 		(if (and
-		    ;; Does the function names match?
+		    ;; Is this a function?
+		    (fassign? (car env))
+		    ;; Do the function names match?
 		    (equal? (car (car (car env))) (car fun))
-		    ;; Does the number of parameters match?
+		    ;; Do the number of parameters match?
 		    (equal? (length (cadr fun)) (length (cadr (car (car env))))))
 			;; Found the function we are looking for,
-			#T
+			env ;; so return the rest of the environment.
+			    ;; include the current function definition 
+			    ;; so recursion is supported.
 			;; else keep recursing.
-			((env.contains.fun? (cdr env)) fun)
-		#F ;; Base case, function not found.
+			((get.fun.env (cdr env)) fun))
+		'() ;; Base case, function not found.
+))))
+
+;; Searches the given environment for the given function.
+;; This function will then return that functions definition.
+;; function signature.
+;; \param env	The environment we are looking in.
+;; \param fun	Function application we would like to know if is defined or not.
+;;		Should be of the form (FName (ARG0 ARG1 ...)).
+(define get.fun
+    (lambda (env)
+	(lambda (fun)
+	    (if (and (list? env) (not (null? env)))
+		;; Does the front function have the correct function name
+		;; and the correct number of parameters?
+		(if (and
+		    ;; Is this a function?
+		    (fassign? (car env))
+		    ;; Do the function names match?
+		    (equal? (car (car (car env))) (car fun))
+		    ;; Do the number of parameters match?
+		    (equal? (length (cadr fun)) (length (cadr (car (car env))))))
+			;; Found the function we are looking for,
+			(car env) ;; so return the function.
+			;; else keep recursing.
+			((get.fun.expr (cdr env)) fun)
+		) ERR ;; Base case, function not found.
+))))
+
+;; Returns the function body for the requested function in the given environment.
+;; \param env	The environment we are looking in.
+;; \param fun	Function application we would like to know if is defined or not.
+;;		Should be of the form (FName (ARG0 ARG1 ...)).
+(define get.fun.expr
+    (lambda (env)
+	(lambda (fun)
+	    (cadr ((get.fun env) fun))
+)))
+
+;; Returns the list of argument names for the requested function in the given environment.
+;; \param env	The environment we are looking in.
+;; \param fun	Function application we would like to know if is defined or not.
+;;		Should be of the form (FName (ARG0 ARG1 ...)).
+(define get.fun.args
+    (lambda (env)
+	(lambda (fun)
+	    (cadr (car ((get.fun env) fun)))
 )))
 
 ;;;;;;;;;;;;;;;;
@@ -241,6 +301,7 @@
 		[(variable? expr) ((eval.variable expr) env)]
 		[(opexpr? expr) ((eval.opexpr expr) env)]
 		[(fexpr? expr) ((eval.fexpr expr) env)]
+		[(applyf? expr) ((eval.applyf expr) env)]
 		[else ERR]
 ))))
 
@@ -248,7 +309,7 @@
 ;; \param number
 (define eval.number
     (lambda (expr)
-	expr		;; The symmantics is simply the given number.
+	expr	;; The symmantics is simply the given number.
 ))
 
 ;; \param expr	An expression that has been verified to be a variable.
@@ -313,7 +374,46 @@
 	(lambda (env)
 	    ;; Evaluate the tail expression, 
 	    ;; with the function definition added to the environment
-	    (eval.expr (caddr expr) (cons (cadr expr) env))
+	    (eval (caddr expr) (cons (cadr expr) env))
+)))
+
+;; Evaluates the function application request
+;; using the given environment.
+;; \param expr	Valid ApplyF expression with which to be evaluated.
+;; \param env	Which environment should this be evaluated in?
+(define eval.applyf
+    (lambda (expr)
+	(lambda (env)
+	    (eval
+		;; Evaluate the function body
+		((get.fun.expr env) (cadr expr))
+		(append
+		    ;; Add function arguments
+		    (eval.args 
+			((get.fun.args env) (cadr expr)) 
+			(cadr (cadr expr)) 
+			env)
+		    ;; and using static scoping
+		    ((get.fun.env env) (cadr expr)))
+))))
+
+;; Creates an environment by evaluating each argument
+;; using the given environment, and then pairing these
+;; evaluations with the corresponding name in the params list.
+;; Note the returned environment will only include these evaluations
+;; and nothing within 'env'.
+;; \param vars	Names of variables to assign evaluations to.
+;; \param args	Arguments which need to be evaluated.
+;; \param env	Which environment should this be evaluated in?
+(define (eval.args params args env)
+	(if (null? params)
+	    '() ;; Base case - nothing to do.
+	    (cons
+		(list (car params) (eval (car args) env))
+		(eval.args 
+		    (cdr params) 
+		    (cdr args) 
+		    env)
 )))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -327,16 +427,16 @@
 (define eval.condexpr
     (lambda (expr)
 	(lambda (env)
-	    (if (and ;; Regardless of conditional result, both expressions should evaluate to numbers.
-		  (number? (eval (cadr expr) env))
-		  (number? (eval (caddr expr) env)))
+	    ;; (if (and ;; Regardless of conditional result, both expressions should evaluate to numbers.
+		  ;; (number? (eval (cadr expr) env))
+		  ;; (number? (eval (caddr expr) env)))
 		;; Evaluate the given conditional in our environment.
 		(if ((eval.ccond (car expr)) env)
 		    ;; If TRUE, evaluate the first expression,
 		    (eval (cadr expr) env)
 		    ;; else evaluate the second.
 		    (eval (caddr expr) env))
-		ERR) ;; If either expression does not evaluate, return an error.
+		;; ERR) ;; If either expression does not evaluate, return an error.
 )))
 
 ;; Evaluates a conditional expression to TRUE or FALSE.
