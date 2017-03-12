@@ -32,6 +32,42 @@
     (apply (f1 (x))
 )))
 
+;; (eval prov3 '((y 10))) = 12
+(define prov3
+  '(fun ((f (a b)) (var ((x a) (y b)) (+ x y))) (apply (f (y 2))
+)))
+
+;; (eval prov4 '()) = 2
+(define prov4
+    '(var ((x 1))
+	(fun ((f (x)) x)
+	    (fun ((g ()) (var ((x (+ x 1))) (apply (f (x)))))
+		(apply (g ()))
+))))
+
+;; (eval prov5 '()) = 1
+(define prov5
+    '(var ((x 1))
+	(fun ((f ()) x)
+	    (fun ((g ()) (var ((x (+ x 1))) (apply (f ()))))
+		(apply (g ()))
+))))
+
+;; (eval prov6 '((x 10))) = 55
+(define prov6
+    '(fun ((f (n))
+	((eq n 0) 0 ((eq n 1) 1 (+ (apply (f ((- n 1)))) (apply (f ((- n 2))))))))
+	    (apply (f (x)))
+))
+
+;; (eval prov7 '((x 10))) = 3628800
+(define prov7
+    '(fun ((f (n a))
+	((eq n 0) a (apply (f ((- n 1) (* n a))))))
+	    (fun ((g (n)) (apply (f (n 1))))
+		(apply (g (x)))
+)))
+
 ;;;;;;;;;;;;;;
 ;; Programs ;;
 ;;;;;;;;;;;;;;

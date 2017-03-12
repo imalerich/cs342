@@ -32,9 +32,9 @@
 ;;		variables in the program must be provided.
 (define (eval prog env)
     (if (and 
-	    (env.valid? env))	;; If we have a vaild environment
-	    ;; (synchk prog))	;; and valid syntax
-	((eval.expr prog) env)	;; go ahead and do evaluation,
+	    (env.valid? env)	;; If we have a vaild environment
+	    (synchk prog))	;; and valid syntax
+	(eval.expr prog env)	;; go ahead and do evaluation,
 	ERR			;; else display an error.
 ))
 
@@ -293,17 +293,15 @@
 ;; \param expr	The expression with which to evaluate.
 ;; \param env	The environment the expression is to be evaluated in.
 ;; \return	The results of the expression, ERR if an error occurs.
-(define eval.expr
-    (lambda (expr)
-	(lambda (env)
-	    (cond 
-		[(number? expr) (eval.number expr)]
-		[(variable? expr) ((eval.variable expr) env)]
-		[(opexpr? expr) ((eval.opexpr expr) env)]
-		[(fexpr? expr) ((eval.fexpr expr) env)]
-		[(applyf? expr) ((eval.applyf expr) env)]
-		[else ERR]
-))))
+(define (eval.expr expr env)
+    (cond 
+	[(number? expr) (eval.number expr)]
+	[(variable? expr) ((eval.variable expr) env)]
+	[(opexpr? expr) ((eval.opexpr expr) env)]
+	[(fexpr? expr) ((eval.fexpr expr) env)]
+	[(applyf? expr) ((eval.applyf expr) env)]
+	[else expr]
+))
 
 ;; No environemnt is needed, a number is just the expression itself
 ;; \param number
@@ -350,13 +348,13 @@
     (lambda (expr)
 	(lambda (env)
 	    (if (and ;; Evaluating both expressions should result in a number.
-		    (number? (eval (cadr expr) env))
-		    (number? (eval (caddr expr) env)))
+		    (number? (eval.expr (cadr expr) env))
+		    (number? (eval.expr (caddr expr) env)))
 		(cond ;; We know we have numbers to work with, go ahead and do some arithmetic.
-		    [(equal? (car expr) '+) (+ (eval (cadr expr) env) (eval (caddr expr) env) )]
-		    [(equal? (car expr) '-) (- (eval (cadr expr) env) (eval (caddr expr) env) )]
-		    [(equal? (car expr) '*) (* (eval (cadr expr) env) (eval (caddr expr) env) )]
-		    [(equal? (car expr) '/) (/ (eval (cadr expr) env) (eval (caddr expr) env) )]
+		    [(equal? (car expr) '+) (+ (eval.expr (cadr expr) env) (eval.expr (caddr expr) env) )]
+		    [(equal? (car expr) '-) (- (eval.expr (cadr expr) env) (eval.expr (caddr expr) env) )]
+		    [(equal? (car expr) '*) (* (eval.expr (cadr expr) env) (eval.expr (caddr expr) env) )]
+		    [(equal? (car expr) '/) (/ (eval.expr (cadr expr) env) (eval.expr (caddr expr) env) )]
 		    [else ERR] ;; This should never happen, cause we know our arithexpr is valid.
 		)
 		ERR ;; Expressions do not result in numbers, cannot evaluate.
@@ -374,7 +372,7 @@
 	(lambda (env)
 	    ;; Evaluate the tail expression, 
 	    ;; with the function definition added to the environment
-	    (eval (caddr expr) (cons (cadr expr) env))
+	    (eval.expr (caddr expr) (cons (cadr expr) env))
 )))
 
 ;; Evaluates the function application request
@@ -384,7 +382,7 @@
 (define eval.applyf
     (lambda (expr)
 	(lambda (env)
-	    (eval
+	    (eval.expr
 		;; Evaluate the function body
 		((get.fun.expr env) (cadr expr))
 		(append
@@ -409,7 +407,7 @@
 	(if (null? params)
 	    '() ;; Base case - nothing to do.
 	    (cons
-		(list (car params) (eval (car args) env))
+		(list (car params) (eval.expr (car args) env))
 		(eval.args 
 		    (cdr params) 
 		    (cdr args) 
@@ -427,16 +425,12 @@
 (define eval.condexpr
     (lambda (expr)
 	(lambda (env)
-	    ;; (if (and ;; Regardless of conditional result, both expressions should evaluate to numbers.
-		  ;; (number? (eval (cadr expr) env))
-		  ;; (number? (eval (caddr expr) env)))
 		;; Evaluate the given conditional in our environment.
 		(if ((eval.ccond (car expr)) env)
 		    ;; If TRUE, evaluate the first expression,
-		    (eval (cadr expr) env)
+		    (eval.expr (cadr expr) env)
 		    ;; else evaluate the second.
-		    (eval (caddr expr) env))
-		;; ERR) ;; If either expression does not evaluate, return an error.
+		    (eval.expr (caddr expr) env))
 )))
 
 ;; Evaluates a conditional expression to TRUE or FALSE.
@@ -475,18 +469,18 @@
 	    (cond
 		[(equal? (car expr) 'gt) 
 		    (>
-			(eval (cadr expr) env)
-			(eval (caddr expr) env)
+			(eval.expr (cadr expr) env)
+			(eval.expr (caddr expr) env)
 		)]
 		[(equal? (car expr) 'lt) 
 		    (<
-			(eval (cadr expr) env)
-			(eval (caddr expr) env)
+			(eval.expr (cadr expr) env)
+			(eval.expr (caddr expr) env)
 		)]
 		[(equal? (car expr) 'eq) 
 		    (equal?
-			(eval (cadr expr) env)
-			(eval (caddr expr) env)
+			(eval.expr (cadr expr) env)
+			(eval.expr (caddr expr) env)
 		)]
 		[else ERR]
 ))))
@@ -502,7 +496,7 @@
     (lambda (expr)
 	(lambda (env)
 	    ;; Evaluate the expression in our new environment.
-	    (eval (caddr expr) ((eval.varassign (cadr expr)) env))
+	    (eval.expr (caddr expr) ((eval.varassign (cadr expr)) env))
 )))
 
 ;; Given a list of variable assignments (as a list of orderd pairs), 
@@ -524,13 +518,13 @@
 
 ;; Takes a single variable assignment as an orderd pair
 ;; in the form of (Variable Expr) and evaluates 'Expr'
-;; returns the orderd pair (Variable (eval Expr))
+;; returns the orderd pair (Variable (eval.expr Expr))
 ;; to be stored in the environment (eager evaluation).
 (define eval.varassignment
     (lambda (expr)
 	(lambda (env)
-	    (if (number? (eval (cadr expr) env)) ;; Can only assign a number to a variable.
-		(list (car expr) (eval (cadr expr) env))	;; Evaluate the expression,
+	    (if (number? (eval.expr (cadr expr) env)) ;; Can only assign a number to a variable.
+		(list (car expr) (eval.expr (cadr expr) env))	;; Evaluate the expression,
 		ERR						;; else return an error.
 ))))
 
