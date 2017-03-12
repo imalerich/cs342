@@ -258,7 +258,7 @@
 			;; Found the function we are looking for,
 			(car env) ;; so return the function.
 			;; else keep recursing.
-			((get.fun.expr (cdr env)) fun)
+			((get.fun (cdr env)) fun)
 		) ERR ;; Base case, function not found.
 ))))
 
