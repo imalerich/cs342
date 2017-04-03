@@ -1,21 +1,16 @@
 #lang racket
 (provide (all-defined-out))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Assignment Provided ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;
+;; Simple Tests ;;
+;;;;;;;;;;;;;;;;;;
 
-;; (synchk prov0) returns false (explanation for 1a)
-;; f is applied but there is not enclosing fun f
-(define prov0
-    '(fun ((f1 (x)) ((gt x 0)
-	(* x (apply (f ((- x 1)))))
-	1))
-    (apply (f1 (x))
-)))
+;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Old Function Samples ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; (eval prov2 ’((x 3))) returns 6
-;; (eval prov2 ’((x 4))) returns 24
+;; (eval prov2 ’((x 3)) '()) returns '(6 ())
+;; (eval prov2 ’((x 4)) '()) returns '(24 ())
 (define prov2
     '(fun ((f1 (x)) ((gt x 0)
 	(* x (apply (f1 ((- x 1)))))
@@ -23,12 +18,12 @@
     (apply (f1 (x))
 )))
 
-;; (eval prov3 '((y 10))) = 12
+;; (eval prov3 '((y 10)) '()) = '(12 ())
 (define prov3
   '(fun ((f (a b)) (var ((x a) (y b)) (+ x y))) (apply (f (y 2))
 )))
 
-;; (eval prov4 '()) = 2
+;; (eval prov4 '() '()) = '(2 ())
 (define prov4
     '(var ((x 1))
 	(fun ((f (x)) x)
@@ -36,7 +31,7 @@
 		(apply (g ()))
 ))))
 
-;; (eval prov5 '()) = 1
+;; (eval prov5 '() '()) = '(1 ())
 (define prov5
     '(var ((x 1))
 	(fun ((f ()) x)
@@ -44,24 +39,20 @@
 		(apply (g ()))
 ))))
 
-;; (eval prov6 '((x 10))) = 55
+;; (eval prov6 '((x 10)) '()) = '(55 ())
 (define prov6
     '(fun ((f (n))
 	((eq n 0) 0 ((eq n 1) 1 (+ (apply (f ((- n 1)))) (apply (f ((- n 2))))))))
 	    (apply (f (x)))
 ))
 
-;; (eval prov7 '((x 10))) = 3628800
+;; (eval prov7 '((x 10)) '()) = '(3628800 ())
 (define prov7
     '(fun ((f (n a))
 	((eq n 0) a (apply (f ((- n 1) (* n a))))))
 	    (fun ((g (n)) (apply (f (n 1))))
 		(apply (g (x)))
 )))
-
-;;;;;;;;;;;;;;
-;; Programs ;;
-;;;;;;;;;;;;;;
 
 ;; VALID
 ;; Returns pi.
@@ -79,6 +70,10 @@
 	(+ 1 (apply (pi ()))
 )))
 
+;;;;;;;;;;;;;;
+;; FAILS!!! ;;
+;;;;;;;;;;;;;;
+
 ;; VALID
 ;; Adds two, then adds one to z,
 ;; where z must be provided by the input environment.
@@ -88,8 +83,7 @@
 	(fun ((addtwo (y)) (+ y 2))
 	    (apply (addone (
 		(apply (addtwo (z)))
-	    )
-)))))
+))))))
 
 ;; VALID
 ;; Program -> Expr -> Number

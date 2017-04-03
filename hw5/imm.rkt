@@ -42,8 +42,139 @@
 	[(opexpr? expr) (eval.opexpr expr env heap)]
 	[(fexpr? expr) (eval.fexpr expr env heap)]
 	[(applyf? expr) (eval.applyf expr env heap)]
+	[(dref? expr) (eval.dref expr env heap)]
+	[(wref? expr) (eval.wref expr env heap)]
+	[(ref? expr) (eval.ref expr env heap)]
+	[(free? expr) (eval.free expr env heap)]
 	[else expr]
 ))
+
+;;;;;;;;;;;;;;;;
+;; References ;;
+;;;;;;;;;;;;;;;;
+
+;; Evaluates the expression, searches the heap for using the evaluation result as key
+;; then returns a (result heap) pair of the heap post expression evaluation and the
+;; result found in the heap.
+(define (eval.dref expr env heap)
+    (if (equal? 
+	    (heap.find heap (car (eval.expr (cadr expr) env heap)))
+	    OOMA)
+	OOMA ;; ERROR - Could not find requested location.
+	(if (equal? ;; Make sure we are not trying to read from a 'free' location.
+	    (heap.find heap (car (eval.expr (cadr expr) env heap))) 'free)
+	    FMA ;; ERROR - Requested location is 'free'.
+	    (list
+		;; Result is the value in the input heap.
+		(heap.find heap ;; Search the input heap.
+		    (car (eval.expr (cadr expr) env heap))) ;; Evaluate the expression to find the key.
+		(cadr (eval.expr (cadr expr) env heap))) ;; The input expr may have modified the heap.
+)))
+
+;; Evaluates the expression for the desired key and value, then modifies the heap by changing
+;; the value at key with the evaluated value. Both the key and value evaluation may also perform
+;; changes on the heap. Pretty sure the assignment does not require this, but I have included it just in case.
+(define (eval.wref expr env heap)
+    (if (heap.key.exists? heap (car (eval.expr (cadr expr) env heap)))
+	;; We have evaluated a valid key, now write the value to the heap.
+	(list
+	    ;; The value is simply the one passed in by Expr2.
+	    (car (eval.expr (cadr expr) env 
+		(cadr (eval.expr (cadr expr) env heap)) ;; Let Expr1 modify the heap.
+	    ))
+	    ;; Modify the heap here...
+	    (heap.write ;; This will return the modified heap.
+		;; Include modifications by both key and value evaluation.
+		(cadr (eval.expr (cadr expr) env 
+		    (cadr (eval.expr (cadr expr) env heap)) ;; Let Expr1 modify the heap.
+		))
+		;; Key goes here.
+		(car (eval.expr (cadr expr) env heap))
+		;; And Value goes here.
+		(car (eval.expr (cadr expr) env 
+		    (cadr (eval.expr (cadr expr) env heap)) ;; Let Expr1 modify the heap.
+		))
+	))
+	FMA ;; ERROR - Key does not exist for writing.
+))
+
+;; Evaluates the input expression to a value, then writes that value to the first available free location.
+;; If no such free location is found, then OOM is returned instead.
+(define (eval.ref expr env heap)
+    (if (equal? (heap.first.free heap) OOM)
+	OOM ;; ERROR - We have no where to write this data.
+	;; Else we know we have a valid key, so write our data to that key.
+	(heap.write
+	    heap
+	    (heap.first.free heap) ;; The key we are writing to.
+	    (car (eval.expr (cadr expr) env heap)) ;; The value to be written.
+)))
+
+;; Evaluates the expression for the given key, if that key exists (and is not already free), 
+;; then 'free' will be written to that location in memory and the (key heap) will be returned.
+;; If either the location is already free or the key does not exist, the FMA exception is returned.
+(define (eval.free expr env heap)
+    (if (heap.key.exists? heap (car (eval.expr (cadr expr) env heap)))
+	(if (equal? (heap.find heap (car (eval.expr (cadr expr) env heap))) 'free)
+	    FMA ;; ERROR - Value at key has already been freed.
+	    (list
+		;; Returns the evaluated key.
+		(car (eval.expr (cadr expr) env heap))
+		;; Accompanied by the modified heap with freed memory.
+		(heap.write
+		    heap
+		    (car (eval.expr (cadr expr) env heap))
+		    'free
+	    )))
+	FMA ;; ERROR - Key does not exist for deallocation.
+))
+
+;; Finds the first key in the heap that has the value 'free'.
+;; If no such location exists, the OOM exception is returned instead.
+(define (heap.first.free heap)
+    (if (or (null? heap) (not (list? heap)))
+	OOM
+	(if (equal? (cadr (car heap)) 'free)
+	    (car (car heap)) ;; A free loctaion was found, return the key.
+	    (heap.first.free (cdr heap)) ;; Recurse to the tail of the heap.
+)))
+
+;; Searches a list of key value pairs for the given key.
+(define (heap.find heap key)
+    (if (or (null? heap) (not (list? heap)))
+	OOMA ;; We could not find the address to dereference.
+	(if (equal? key (car (car heap)))	;; If the key matches the front item in the heap...
+	    (cadr (car heap))			;; return the value of the front item,
+	    (heap.find (cdr heap) key)		;; else recurse to the rest of the heap.
+)))
+
+;; Determines whether or not the key is actually present in the given heap.
+(define (heap.key.exists? heap key)
+    (if (or (null? heap) (not (list? heap)))
+	#F
+	(if (equal? key (car (car heap)))
+	  #T
+	  (heap.key.exists? (cdr heap) key)
+)))
+
+;; Writes 'val' to the location given by 'key' in the input heap.
+;; Assumes key is valid, if it is not, this function does nothing.
+;; Returns the modified heap.
+(define (heap.write heap key val)
+    (if (or (null? heap) (not (list? heap)))
+	heap ;; Base case - return the unmodified heap.
+	(if (equal? key (car (car heap)))
+	    (cons
+		(list key val) ;; Replace the front element with the given key value pair.
+		(cdr heap)) ;; No need to change the rest of the heap.
+	    (cons
+		(car heap) ;; Keep the front of the heap the same...
+		(heap.write (cdr heap) key val)) ;; but modify the rest.
+)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Numbers & Operators ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; No environemnt is needed, a number is just the expression itself
 ;; \param number
@@ -131,30 +262,6 @@
 	ERR ;; Expressions do not result in numbers, cannot evaluate.
 ))
 
-;;;;;;;;;;;;;;;;
-;; References ;;
-;;;;;;;;;;;;;;;;
-
-(define (eval.dref expr env heap)
-    ;; TODO
-    ERR
-)
-
-(define (eval.wref expr env heap)
-    ;; TODO
-    ERR
-)
-
-(define (eval.ref expr env heap)
-    ;; TODO
-    ERR
-)
-
-(define (eval.free expr env heap)
-    ;; TODO
-    ERR
-)
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Function Evaluation ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -216,11 +323,11 @@
 		    (list (car params) 
 			(car (eval.expr (car args) env heap))) ;; Value of expression evaluation.
 		    (car (eval.args (cdr params) (cdr args) env ;; Get the list of arguments...
-			(cadr (eval.expr (car args) env heap)))) ;; using teh heap post current evaluation.
+			(cadr (eval.expr (car args) env heap))))) ;; using teh heap post current evaluation.
 		;; Get the heap state at the end of recursion.
 		(cadr (eval.args (cdr params) (cdr args) env 
 		    (cadr (eval.expr (car args) env heap))))
-))))
+)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Conditional Evaluation ;;
