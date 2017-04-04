@@ -415,7 +415,8 @@
 	    ))
 	)]
 	[(equal? (car expr) 'lt) 
-	    (list (< ;; Find the result...
+	    (list 
+		(< ;; Find the result...
 		(car (eval.expr (cadr expr) env heap))
 		(car (eval.expr (caddr expr) env 
 		    (cadr (eval.expr (cadr expr) env heap)) ;; Use the heap from evaluation of Expr1.
@@ -489,7 +490,9 @@
 	    ;; Else we have valid results, do what it as we need.
 	    (list
 		(cons ;; Create the new environment,
-		    (list (car expr) (car (eval.expr (cadr expr) env heap))) ;; but add the new variable.
+		    (list 
+			(car expr) 
+			(car (eval.expr (cadr expr) env heap))) ;; but add the new variable.
 		    env)
 		(cadr (eval.expr (cadr expr) env heap))) ;; Include the modified heap.
 	    ERR

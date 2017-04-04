@@ -72,6 +72,20 @@
 		(deref x)
 ))))
 
+;; Adds the two input values to the heap by decrementing the first by one each iteration
+;; and incrementing the second each iteration.
+;; Example:
+;;	(eval test7 '() '((1 20) (2 13))) -> '(33 '((1 0) (2 33)))
+(define test7
+    ;; add(* x, * y)
+    ;; Recursively adds the value pointed to by x, to the value pointed to by y.
+    '(fun ((add (x y)) 
+	((lt (wref x (- (deref x) 1)) 1) 
+	    (wref y (+ 1 (deref y))) ;; Base case, return y,
+	    (wref y (+ 1 (apply (add (x y))))))) ;; and add one to 1 recursively.
+	(apply (add (1 2)))
+))
+
 ;;;;;;;;;;;;;;;;;;
 ;; HW5 Provided ;;
 ;;;;;;;;;;;;;;;;;;
