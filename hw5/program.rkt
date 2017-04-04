@@ -1,53 +1,139 @@
 #lang racket
 (provide (all-defined-out))
 
+;;;;;;;;;;;
+;; Tests ;;
+;;;;;;;;;;;
+
+;; Simple 'ref' test.
+;; Modifies the input heap, setting the value
+;; of the first free location to 10.
+;; Examples:
+;; 	(eval test1 '() '()) -> OOM
+;;	(eval test1 '() '((1 free))) -> '(1 ((1 10)))
+(define test1
+    '(ref (* 5 2))
+)
+
+;; Simple 'free' test.
+;; Frees memory at location 1 (will return a value of 1).
+;; Examples:
+;;	(eval test2 '() '()) -> OOMA
+;;	(eval test2 '() '((1 free))) -> FMA
+;;	(eval test2 '() '((1 32))) -> '(1 ((1 free)))
+(define test2
+    '(free 1)
+)
+
+;; Simple 'deref' test.
+;; Dereferences the value at location 4.
+;; Examples:
+;;	(eval test3 '() '()) -> OOMA
+;;	(eval test3 '() '((4 free))) -> FMA
+;;	(eval test3 '() '((4 32))) -> '(32 ((4 32)))
+(define test3
+    '(deref 4)
+)
+
+;; Simple 'wref' test.
+;; (wref addr value)
+;; Writes the value 27 to location 2.
+;; Examples:
+;;	(eval test4 '() '()) -> OOMA
+;;	(eval test4 '() '((2 free))) -> FMA
+;;	(eval test4 '() '((2 1))) -> '(27 ((2 27)))
+(define test4
+    '(wref 2 (* 3 (* 3 3)))
+)
+
+;; Allocates a value on the heap and stores 12.
+;; Returns a result of the format (x ((x 12)))
+;; where x is the address of the first free location in memory.
+;; Examples:
+;;	(eval test5 '() '()) -> OOM
+;;	(eval test5 '() '((16 free) (1 free))) -> '(16 ((16 12) (1 free)))
+(define test5
+    '(var ((x (ref 12))) x)
+)
+
+;; Here is the C code for test5.
+;;	int * x = malloc(sizeof(int));
+;; 	*x = 12;
+;; 	int * y = x;
+;; 	*y = 128;
+;; 	print(*x)
+;; Note needs at least one free heap location.
+;; Returns: '(128 ((addr 128))
+;; If no heap is given: OOM Exception
+(define test6
+    '(var ((x (ref 12)))
+	(var ((y x))
+	    (var ((tmp (wref y 128)))
+		(deref x)
+))))
+
 ;;;;;;;;;;;;;;;;;;
-;; Simple Tests ;;
+;; HW5 Provided ;;
 ;;;;;;;;;;;;;;;;;;
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Old Function Samples ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; (eval prov1 '() '((1 free))) -> FMA
+;; (eval prov1 '() '((1 3))) -> '(4 '((1 3)))
+(define prov1
+    '(var ((x (deref 1))) (+ x 1))
+)
 
-;; (eval prov2 ’((x 3)) '()) returns '(6 ())
-;; (eval prov2 ’((x 4)) '()) returns '(24 ())
+;; (eval prov2 '() '((1 free))) -> OOMA
+;; (eval prov2 '() '((1 free) (2 64))) -> '(64 ((1 32) (2 64)))
 (define prov2
+    '(var ((x (ref 32)))
+	(var ((y (+ x 1)))
+	    (deref y)))
+)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;        Old Function Samples         ;;
+;; (these of course should still work) ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; (eval prov_old2 ’((x 3)) '()) returns '(6 ())
+;; (eval prov_old2 ’((x 4)) '()) returns '(24 ())
+(define prov_old2
     '(fun ((f1 (x)) ((gt x 0)
 	(* x (apply (f1 ((- x 1)))))
 	1))
     (apply (f1 (x))
 )))
 
-;; (eval prov3 '((y 10)) '()) = '(12 ())
-(define prov3
+;; (eval prov_old3 '((y 10)) '()) = '(12 ())
+(define prov_old3
   '(fun ((f (a b)) (var ((x a) (y b)) (+ x y))) (apply (f (y 2))
 )))
 
-;; (eval prov4 '() '()) = '(2 ())
-(define prov4
+;; (eval prov_old4 '() '()) = '(2 ())
+(define prov_old4
     '(var ((x 1))
 	(fun ((f (x)) x)
 	    (fun ((g ()) (var ((x (+ x 1))) (apply (f (x)))))
 		(apply (g ()))
 ))))
 
-;; (eval prov5 '() '()) = '(1 ())
-(define prov5
+;; (eval prov_old5 '() '()) = '(1 ())
+(define prov_old5
     '(var ((x 1))
 	(fun ((f ()) x)
 	    (fun ((g ()) (var ((x (+ x 1))) (apply (f ()))))
 		(apply (g ()))
 ))))
 
-;; (eval prov6 '((x 10)) '()) = '(55 ())
-(define prov6
+;; (eval prov_old6 '((x 10)) '()) = '(55 ())
+(define prov_old6
     '(fun ((f (n))
 	((eq n 0) 0 ((eq n 1) 1 (+ (apply (f ((- n 1)))) (apply (f ((- n 2))))))))
 	    (apply (f (x)))
 ))
 
-;; (eval prov7 '((x 10)) '()) = '(3628800 ())
-(define prov7
+;; (eval prov_old7 '((x 10)) '()) = '(3628800 ())
+(define prov_old7
     '(fun ((f (n a))
 	((eq n 0) a (apply (f ((- n 1) (* n a))))))
 	    (fun ((g (n)) (apply (f (n 1))))
@@ -69,10 +155,6 @@
     '(fun ((pi ()) 3.14159265) 
 	(+ 1 (apply (pi ()))
 )))
-
-;;;;;;;;;;;;;;
-;; FAILS!!! ;;
-;;;;;;;;;;;;;;
 
 ;; VALID
 ;; Adds two, then adds one to z,

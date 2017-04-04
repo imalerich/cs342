@@ -36,17 +36,20 @@
 ;; \param heap	The heap the expression should use for evaluation.
 ;; \return	The results of the expression, ERR if an error occurs.
 (define (eval.expr expr env heap)
-    (cond 
-	[(number? expr) (list (eval.number expr) heap)]
-	[(variable? expr) (list ((eval.variable expr) env) heap)]
-	[(opexpr? expr) (eval.opexpr expr env heap)]
-	[(fexpr? expr) (eval.fexpr expr env heap)]
-	[(applyf? expr) (eval.applyf expr env heap)]
-	[(dref? expr) (eval.dref expr env heap)]
-	[(wref? expr) (eval.wref expr env heap)]
-	[(ref? expr) (eval.ref expr env heap)]
-	[(free? expr) (eval.free expr env heap)]
-	[else expr]
+    (if (equal? (env.valid? env) #T)
+	(cond 
+	    [(number? expr) (list (eval.number expr) heap)]
+	    [(variable? expr) (list ((eval.variable expr) env) heap)]
+	    [(opexpr? expr) (eval.opexpr expr env heap)]
+	    [(fexpr? expr) (eval.fexpr expr env heap)]
+	    [(applyf? expr) (eval.applyf expr env heap)]
+	    [(dref? expr) (eval.dref expr env heap)]
+	    [(wref? expr) (eval.wref expr env heap)]
+	    [(ref? expr) (eval.ref expr env heap)]
+	    [(free? expr) (eval.free expr env heap)]
+	    [else expr])
+	;; If the invornment is not valid, env.valid? will return the error or exception it found.
+	(env.valid? env)
 ))
 
 ;;;;;;;;;;;;;;;;
@@ -74,28 +77,31 @@
 ;; Evaluates the expression for the desired key and value, then modifies the heap by changing
 ;; the value at key with the evaluated value. Both the key and value evaluation may also perform
 ;; changes on the heap. Pretty sure the assignment does not require this, but I have included it just in case.
+;; Input expression should be of the form '(wref Expr1 Expr2) where Expr1 computes the key and Expr2 computes the value.
 (define (eval.wref expr env heap)
     (if (heap.key.exists? heap (car (eval.expr (cadr expr) env heap)))
-	;; We have evaluated a valid key, now write the value to the heap.
-	(list
-	    ;; The value is simply the one passed in by Expr2.
-	    (car (eval.expr (cadr expr) env 
-		(cadr (eval.expr (cadr expr) env heap)) ;; Let Expr1 modify the heap.
-	    ))
-	    ;; Modify the heap here...
-	    (heap.write ;; This will return the modified heap.
-		;; Include modifications by both key and value evaluation.
-		(cadr (eval.expr (cadr expr) env 
+	(if (equal? (heap.find heap (car (eval.expr (cadr expr) env heap))) 'free)
+	    FMA ;; ERROR - Cannot write to a free location.
+	    ;; We have evaluated a valid key, now write the value to the heap.
+	    (list
+		;; The value is simply the one passed in by Expr2.
+		(car (eval.expr (caddr expr) env 
 		    (cadr (eval.expr (cadr expr) env heap)) ;; Let Expr1 modify the heap.
 		))
-		;; Key goes here.
-		(car (eval.expr (cadr expr) env heap))
-		;; And Value goes here.
-		(car (eval.expr (cadr expr) env 
-		    (cadr (eval.expr (cadr expr) env heap)) ;; Let Expr1 modify the heap.
-		))
-	))
-	FMA ;; ERROR - Key does not exist for writing.
+		;; Modify the heap here...
+		(heap.write ;; This will return the modified heap.
+		    ;; Include modifications by both key and value evaluation.
+		    (cadr (eval.expr (caddr expr) env 
+			(cadr (eval.expr (cadr expr) env heap)) ;; Let Expr1 modify the heap.
+		    ))
+		    ;; Key goes here.
+		    (car (eval.expr (cadr expr) env heap))
+		    ;; And Value goes here.
+		    (car (eval.expr (caddr expr) env 
+			(cadr (eval.expr (cadr expr) env heap)) ;; Let Expr1 modify the heap.
+		    ))
+	    )))
+	OOMA ;; ERROR - Key does not exist for writing.
 ))
 
 ;; Evaluates the input expression to a value, then writes that value to the first available free location.
@@ -104,11 +110,13 @@
     (if (equal? (heap.first.free heap) OOM)
 	OOM ;; ERROR - We have no where to write this data.
 	;; Else we know we have a valid key, so write our data to that key.
-	(heap.write
-	    heap
-	    (heap.first.free heap) ;; The key we are writing to.
-	    (car (eval.expr (cadr expr) env heap)) ;; The value to be written.
-)))
+	(list
+	    (heap.first.free heap)	;; Ref evaluates to the first free address.
+	    (heap.write			;; Don't forget to include the modified heap.
+		heap
+		(heap.first.free heap) ;; The key we are writing to.
+		(car (eval.expr (cadr expr) env heap)) ;; The value to be written.
+))))
 
 ;; Evaluates the expression for the given key, if that key exists (and is not already free), 
 ;; then 'free' will be written to that location in memory and the (key heap) will be returned.
@@ -126,7 +134,7 @@
 		    (car (eval.expr (cadr expr) env heap))
 		    'free
 	    )))
-	FMA ;; ERROR - Key does not exist for deallocation.
+	OOMA ;; ERROR - Key does not exist for deallocation.
 ))
 
 ;; Finds the first key in the heap that has the value 'free'.
@@ -469,14 +477,23 @@
 ;; is the expanded input environment to include the new variable,
 ;; and heap includes any modifications made to the heap by expr.
 (define (eval.varassignment expr env heap)
-    (if (number? (car (eval.expr (cadr expr) env heap)))
-	(list
-	    (cons ;; Create the new environment,
-		(list (car expr) (car (eval.expr (cadr expr) env heap))) ;; but add the new variable.
+    (if (is.except? (eval.expr (cadr expr) env heap))
+	;; Set up so we catch this later and return as an error.
+	(list 
+	    (cons ;; Include the error in the new invornment to be caught by our environment check.
+		(list (car expr) (eval.expr (cadr expr) env heap))
 		env)
-	    (cadr (eval.expr (cadr expr) env heap))) ;; Include the modified heap.
-	ERR
-))
+	    heap ;; We failed, no need to change the heap.
+	)
+	(if (number? (car (eval.expr (cadr expr) env heap)))
+	    ;; Else we have valid results, do what it as we need.
+	    (list
+		(cons ;; Create the new environment,
+		    (list (car expr) (car (eval.expr (cadr expr) env heap))) ;; but add the new variable.
+		    env)
+		(cadr (eval.expr (cadr expr) env heap))) ;; Include the modified heap.
+	    ERR
+)))
 
 ;;;;;;;;;;;;;;;;;
 ;; Environemnt ;;
@@ -491,23 +508,35 @@
 	(if (list? env)
 	    (if (null? env)
 		#T ;; An empty list is a valid environment.
-		(and 
+		(if (and (env.is.var? (car env)) (is.except? (cadr (car env))))
+		    (cadr (car env)) ;; Exception found in environment, return it.
+
 		    ;; The environment may contain variables and function definitions.
-		    (or (env.is.var? (car env)) (fassign? (car env)))
-		    ;; The remaining elements must also be a valid.
-		    (env.valid? (cdr env))
-	    ))
-	    #F	;; An environment must be a list by definition.
+		    (if (or (env.is.var? (car env)) (fassign? (car env)))
+			(env.valid? (cdr env)) ;; Current item is valid, just do what the rest of the list tells us.
+			ERR
+	    )))
+	    ERR	;; An environment must be a list by definition.
 )))
+
+;; Checks whether or not the input item is an exception.
+(define is.except?
+    (lambda (err)
+	(or
+	    (equal? err OOM)
+	    (equal? err OOMA)
+	    (equal? err FMA))
+))
 
 ;; Checks whether or not the given environment element is a variable.
 (define env.is.var?
     (lambda (elem)
 	(and
-	    (list? elem)		;; First element must be a list
-	    (equal? (length elem) 2)	;; containing two elements.
-	    (variable? (car elem))	;; The first is the variable definition.
-	    (number? (cadr elem))	;; Second must be a number (eager evaluation).
+	    (list? elem)			;; First element must be a list
+	    (equal? (length elem) 2)		;; containing two elements.
+	    (variable? (car elem))		;; The first is the variable definition.
+	    (or (number? (cadr elem))		;; Second must be a number (eager evaluation).
+		(is.except? (cadr elem)))	;; Some variables may have exceptions in them.
 )))
 
 ;; Checks whether or not the environment contains the given variable,
