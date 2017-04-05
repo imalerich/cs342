@@ -65,6 +65,9 @@
 ;; Note needs at least one free heap location.
 ;; Returns: '(128 ((addr 128))
 ;; If no heap is given: OOM Exception
+;; Examples:
+;;	(eval test6 '() '()) -> OOM
+;;	(eval test6 '() '((1 free))) -> (128 ((1 128)))
 (define test6
     '(var ((x (ref 12)))
 	(var ((y x))
@@ -75,7 +78,10 @@
 ;; Adds the two input values to the heap by decrementing the first by one each iteration
 ;; and incrementing the second each iteration.
 ;; Example:
-;;	(eval test7 '() '((1 20) (2 13))) -> '(33 '((1 0) (2 33)))
+;;	(eval test7 '() '())			-> OOMA
+;;	(eval test7 '() '((1 1) (2 1)))		-> '(2 '((1 0) (2 2)))
+;;	(eval test7 '() '((1 2) (2 3)))		-> '(5 '((1 0) (2 5)))
+;;	(eval test7 '() '((1 10) (2 6)))	-> '(16 '((1 0) (2 16)))
 (define test7
     ;; add(* x, * y)
     ;; Recursively adds the value pointed to by x, to the value pointed to by y.
@@ -85,6 +91,44 @@
 	    (wref y (+ 1 (apply (add (x y))))))) ;; and add one to 1 recursively.
 	(apply (add (1 2)))
 ))
+
+;; Adds two increments of x together.
+;; Note as x is initially 13, 
+;; after one increment it is 14
+;; and after the second it is 15
+;; thus the result is 14 + 15 = 29.
+;; Examples:
+;;	(eval test8 '() '()) -> OOM
+;;	(eval test8 '() '((1 free))) -> '(29 ((1 15)))
+(define test8
+    ;; Increments the value pointed to by x.
+    '(fun ((incp (x)) (wref x (+ (deref x) 1)))
+	(var ((x (ref 13)))
+	    ;; Add two increments of x together.
+	    (+ 
+	      (apply (incp (x)))
+	      (apply (incp (x)))
+))))
+
+;; Simple test for to make sure you can catch exceptions within operations.
+;; Example:
+;;	(eval test9 '() '()) -> OOMA
+;;	(eval test9 '() '((1 2))) -> OOMA
+;;	(eval test9 '() '((2 1))) -> OOMA
+;;	(eval test9 '() '((1 2) (2 3))) -> '(5 ((1 2) (2 3)))
+(define test9
+    '(+ (deref 1) (deref 2))
+)
+
+;; Simple test for to make sure you can catch exceptions within conditionals
+;; Example:
+;;	(eval test10 '() '()) -> OOMA
+;;	(eval test10 '() '((1 2))) -> OOMA
+;;	(eval test10 '() '((2 1))) -> OOMA
+;;	(eval test10 '() '((1 1) (2 2))) -> '(0 ((1 1) (2 2)))
+(define test10
+    '((gt (deref 1) (deref 2)) 1 0)
+)
 
 ;;;;;;;;;;;;;;;;;;
 ;; HW5 Provided ;;

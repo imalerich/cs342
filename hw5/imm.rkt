@@ -18,9 +18,9 @@
 ;;		for the program to be evaluated, further all free
 ;;		variables in the program must be provided.
 (define (eval prog env heap)
-    (if (env.valid? env)		;; If we have a vaild environment
-	(eval.expr prog env heap)	;; go ahead and do evaluation,
-	ERR				;; else display an error.
+    (if (env.valid? env)				;; If we have a vaild environment
+	(chk.res (eval.expr prog env heap) heap)
+	(list ERR heap)					;; else display an error.
 ))
 
 ;;;;;;;;;;;;;;;;
@@ -38,18 +38,32 @@
 (define (eval.expr expr env heap)
     (if (equal? (env.valid? env) #T)
 	(cond 
-	    [(number? expr) (list (eval.number expr) heap)]
-	    [(variable? expr) (list ((eval.variable expr) env) heap)]
-	    [(opexpr? expr) (eval.opexpr expr env heap)]
-	    [(fexpr? expr) (eval.fexpr expr env heap)]
-	    [(applyf? expr) (eval.applyf expr env heap)]
-	    [(dref? expr) (eval.dref expr env heap)]
-	    [(wref? expr) (eval.wref expr env heap)]
-	    [(ref? expr) (eval.ref expr env heap)]
-	    [(free? expr) (eval.free expr env heap)]
+	    [(number? expr)	(list (eval.number expr) heap)]
+	    [(variable? expr)	(list ((eval.variable expr) env) heap)]
+	    [(opexpr? expr)	(chk.res (eval.opexpr expr env heap) heap)]
+	    [(fexpr? expr)	(chk.res (eval.fexpr expr env heap) heap)]
+	    [(applyf? expr)	(chk.res (eval.applyf expr env heap) heap)]
+	    [(dref? expr)	(chk.res (eval.dref expr env heap) heap)]
+	    [(wref? expr)	(chk.res (eval.wref expr env heap) heap)]
+	    [(ref? expr)	(chk.res (eval.ref expr env heap) heap)]
+	    [(free? expr)	(chk.res (eval.free expr env heap) heap)]
 	    [else expr])
 	;; If the invornment is not valid, env.valid? will return the error or exception it found.
-	(env.valid? env)
+	;; Note as we have the heap attached, this will cause 'evals' excetpion check to fail,
+	;; and it will just output what I have below.
+	;; Obviously not the ideal way to do it, but the easiest way to get things working with my 
+	;; old code.
+	(list (env.valid? env) heap)
+))
+
+;; Checks to make sure a result is valid,
+;; if it returns an error or exception, constructs a new
+;; resulting  containing the current heap.
+(define (chk.res res heap)
+    (if (or (is.except? res) 	;; make sure we do not return an exception
+	    (equal? res ERR))	;; or an error
+	(list res heap)		;; if so include the heap with that exception//error
+	res			;; else do evaluation as normal
 ))
 
 ;;;;;;;;;;;;;;;;
@@ -267,8 +281,19 @@
 	    )]
 	    [else ERR] ;; This should never happen, cause we know our arithexpr is valid.
 	)
-	ERR ;; Expressions do not result in numbers, cannot evaluate.
-))
+	;; If either evaluated to an exception, be sure to return that instead.
+	(if (is.except? (car (eval.expr (cadr expr) env heap)))
+	    (car (eval.expr (cadr expr) env heap))
+	    (if (is.except?
+		    (car (eval.expr (caddr expr) env 
+			(cadr (eval.expr (cadr expr) env heap)) ;; Use the heap from the evalution of the first operand.
+		    )))
+		(car (eval.expr (caddr expr) env 
+		    (cadr (eval.expr (cadr expr) env heap)) ;; Use the heap from the evalution of the first operand.
+		))
+		ERR) ;; Expressions do not result in numbers, cannot evaluate.
+
+)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Function Evaluation ;;
@@ -347,14 +372,16 @@
 ;; returns the evaluation of Expr2.
 (define (eval.condexpr expr env heap)
     ;; Evaluate the given conditional in our environment.
-    (if (car (eval.ccond (car expr) env heap))
-	;; If TRUE, evaluate the first expression...
-	(eval.expr (cadr expr) env 
-	    (cadr (eval.ccond (car expr) env heap))) ;; with the new heap...
-	;; else evaluate the second
-	(eval.expr (caddr expr) env 
-	    (cadr (eval.ccond (car expr) env heap))) ;; with the new heap.
-))
+    (if (is.except? (eval.ccond (car expr) env heap))
+	(eval.ccond (car expr) env heap)
+	(if (car (eval.ccond (car expr) env heap))
+	    ;; If TRUE, evaluate the first expression...
+	    (eval.expr (cadr expr) env 
+		(cadr (eval.ccond (car expr) env heap))) ;; with the new heap...
+	    ;; else evaluate the second
+	    (eval.expr (caddr expr) env 
+		(cadr (eval.ccond (car expr) env heap))) ;; with the new heap.
+)))
 
 ;; Evaluates a conditional expression to TRUE or FALSE.
 ;; \param expr	Valid conditional expression to be evaluated.
@@ -402,43 +429,59 @@
 ;; \return	A pair of the form (result heap).
 ;;		Where result is True if the conditional evaluates to True, False otherwise.
 (define (eval.bcond expr env heap)
-    (cond
-	[(equal? (car expr) 'gt) 
-	    (list (> ;; Find the result...
-		(car (eval.expr (cadr expr) env heap))
-		(car (eval.expr (caddr expr) env 
+    (if (and ;; Evaluating both expressions should result in a number.
+	    (number? (car (eval.expr (cadr expr) env heap)))
+	    (number? (car (eval.expr (caddr expr) env 
+		(cadr (eval.expr (cadr expr) env heap)) ;; Use the heap from the evalution of the first operand.
+	    ))))
+	(cond
+	    [(equal? (car expr) 'gt) 
+		(list (> ;; Find the result...
+		    (car (eval.expr (cadr expr) env heap))
+		    (car (eval.expr (caddr expr) env 
+			(cadr (eval.expr (cadr expr) env heap)) ;; Use the heap from evaluation of Expr1.
+		    )))
+		;; and pair it with the heap from evaluation of Expr2.
+		(cadr (eval.expr (caddr expr) env 
 		    (cadr (eval.expr (cadr expr) env heap)) ;; Use the heap from evaluation of Expr1.
-		)))
-	    ;; and pair it with the heap from evaluation of Expr2.
-	    (cadr (eval.expr (caddr expr) env 
-		(cadr (eval.expr (cadr expr) env heap)) ;; Use the heap from evaluation of Expr1.
-	    ))
-	)]
-	[(equal? (car expr) 'lt) 
-	    (list 
-		(< ;; Find the result...
-		(car (eval.expr (cadr expr) env heap))
-		(car (eval.expr (caddr expr) env 
+		))
+	    )]
+	    [(equal? (car expr) 'lt) 
+		(list 
+		    (< ;; Find the result...
+		    (car (eval.expr (cadr expr) env heap))
+		    (car (eval.expr (caddr expr) env 
+			(cadr (eval.expr (cadr expr) env heap)) ;; Use the heap from evaluation of Expr1.
+		    )))
+		;; and pair it with the heap from evaluation of Expr2.
+		(cadr (eval.expr (caddr expr) env 
 		    (cadr (eval.expr (cadr expr) env heap)) ;; Use the heap from evaluation of Expr1.
-		)))
-	    ;; and pair it with the heap from evaluation of Expr2.
-	    (cadr (eval.expr (caddr expr) env 
-		(cadr (eval.expr (cadr expr) env heap)) ;; Use the heap from evaluation of Expr1.
-	    ))
-	)]
-	[(equal? (car expr) 'eq) 
-	    (list (equal? ;; Find the result...
-		(car (eval.expr (cadr expr) env heap))
-		(car (eval.expr (caddr expr) env 
+		))
+	    )]
+	    [(equal? (car expr) 'eq) 
+		(list (equal? ;; Find the result...
+		    (car (eval.expr (cadr expr) env heap))
+		    (car (eval.expr (caddr expr) env 
+			(cadr (eval.expr (cadr expr) env heap)) ;; Use the heap from evaluation of Expr1.
+		    )))
+		;; and pair it with the heap from evaluation of Expr2.
+		(cadr (eval.expr (caddr expr) env 
 		    (cadr (eval.expr (cadr expr) env heap)) ;; Use the heap from evaluation of Expr1.
-		)))
-	    ;; and pair it with the heap from evaluation of Expr2.
-	    (cadr (eval.expr (caddr expr) env 
-		(cadr (eval.expr (cadr expr) env heap)) ;; Use the heap from evaluation of Expr1.
-	    ))
-	)]
-	[else ERR]
-))
+		))
+	    )]
+	    [else ERR])
+	;; If either evaluated to an exception, be sure to return that instead.
+	(if (is.except? (car (eval.expr (cadr expr) env heap)))
+	    (car (eval.expr (cadr expr) env heap))
+	    (if (is.except?
+		    (car (eval.expr (caddr expr) env 
+			(cadr (eval.expr (cadr expr) env heap)) ;; Use the heap from the evalution of the first operand.
+		    )))
+		(car (eval.expr (caddr expr) env 
+		    (cadr (eval.expr (cadr expr) env heap)) ;; Use the heap from the evalution of the first operand.
+		))
+		ERR) ;; Expressions do not result in numbers, cannot evaluate.
+)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Variable Evaluation ;;
@@ -478,11 +521,11 @@
 ;; is the expanded input environment to include the new variable,
 ;; and heap includes any modifications made to the heap by expr.
 (define (eval.varassignment expr env heap)
-    (if (is.except? (eval.expr (cadr expr) env heap))
+    (if (is.except? (car (eval.expr (cadr expr) env heap)))
 	;; Set up so we catch this later and return as an error.
 	(list 
 	    (cons ;; Include the error in the new invornment to be caught by our environment check.
-		(list (car expr) (eval.expr (cadr expr) env heap))
+		(list (car expr) (car (eval.expr (cadr expr) env heap)))
 		env)
 	    heap ;; We failed, no need to change the heap.
 	)
