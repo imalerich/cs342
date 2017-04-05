@@ -1,8 +1,6 @@
 #lang racket
 (provide (all-defined-out))
 
-(require "program.rkt")
-
 (define ERR '(Cannot Evaluate))
 (define FMA '(exception fma))
 (define OOMA '(exception ooma))
