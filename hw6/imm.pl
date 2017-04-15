@@ -1,10 +1,45 @@
 :- [airlines].
 
-%% Simple practice query, simply answers the question:
-%% 	Is there a path between the cities X and Y?
+%%
+%% Some utilities I'm going to need.
+%%
 
-reach(X, Y) :- flight(_, X, Y, _, _).
-reach(X, Y) :- flight(_, X, Z, _, _), reach(Z, Y).
+merge([], [], []).		%% Base case: both empty.
+merge([H], B, [H|B]) :- !.	%% Base case: Add a single head.
+
+merge([H|T], B, [H|C]) :-
+    T \= [],			%% Don't go to the base case.
+    merge(T, B, C).		%% Recurse to merge the tail of our first list with B.
+
+%% Finds the list of all visited cities in the order in which they are visited.
+%% As an example:
+%%	[[A,_,B], [B,_,C], [C,_,D]] -> [A,B,C,D].
+%% Note the origin and the destination are always included,
+%% 	but adjacent ports are included only once.
+%% Thus:
+%%	[[A,_,B], [B,_,A], [A,_,C]] -> [A,B,A,C].
+%% Thus this predicate simply serves as a utity to be used by redundantPath below.
+visited([], []) :- !.
+visited([[A, _, B]], [A, B]) :- !.
+visited([[A, _, _]|T], [A|C]) :- 
+    T \= [], 
+    visited(T, C).
+
+%% True if the input list contains duplicate elements.
+%% False if the input list has only unique members.
+isSet([]).
+isSet([_]).
+isSet([H|T]) :-
+    T \= [],
+    (\+ once(member(H, T))),	%% Head must NOT be present in the Tail of the list.
+    isSet(T).			%% The Tail of the list must also itself be a set.
+
+%% Determines whether or not the input path is redundant,
+%% 	this is to say the path visits a single city more than once.
+%% Such paths should be excluded from results.
+redundantPath(Path) :- 
+    visited(Path, Visited),	%% Convert the path to a list of visited cities in order.
+    (\+ isSet(Visited)).	%% Check if we visited any city more than once.
 
 %% Create a single 'Flight Leg' from Origin to Dest.
 leg(O, D, [O, Port, D]) :- flight(Port, O, D, _, _) ; flight(Port, D, O, _, _).
@@ -77,3 +112,19 @@ trip(Origin, Destination, [Price, Duration, NumAirlines, Path]) :-
 %%%%%%%%%%%%%%%%%%%
 %% Predicate #2. %%
 %%%%%%%%%%%%%%%%%%%
+tripk(Origin, Destination, K, [Price, Duration, NumAirlines, Path]) :-
+    trip(Origin, Destination, [Price, Duration, NumAirlines, Path]),
+    (Duration < K).
+
+%%%%%%%%%%%%%%%%%%%
+%% Predicate #3. %%
+%%%%%%%%%%%%%%%%%%%
+multicitytrip(Origin, Destination, Intermediate, [Price, Duration, NumAirlines, Path]) :-
+    trip(Origin, Intermediate, [_, _, _, P0]),		%% Origin -> Intermediate
+    trip(Intermediate, Destination, [_, _, _, P1]),	%% Intermediate -> Destination
+    merge(P0, P1, Path), 				%% Combine the paths.
+
+    (\+ redundantPath(Path)),		%% Make sure the path is not redundant.
+    cost(Path, Price),			%% Now all we have to do is find the cost
+    duration(Path, Duration),		%% duration and numairlines for the
+    numairlines(Path, NumAirlines).	%% combine paths that we found.
