@@ -26,7 +26,8 @@ path(O, D, [H | T], Visited) :-
 cost([], Cost) :- Cost is 0.		%% No flight => No cost.
 cost([[O, Port, D]], Cost) :-
     (flight(Port, O, D, C1, _) ;	%% C1 is the cost of the flight.
-    flight(Port, D, O, C1, _)),		%% Flights go both directions, so make sure we get the right one.
+    flight(Port, D, O, C1, _)),		%% Flights go both directions, 
+					%% 	so make sure we get the right one.
     airport(O, Tax, _),			%% Find the tax for the origin airport only.
     Cost is C1 + Tax.			%% Total cost is the sum of those two values.
 cost([H|T], Cost) :-
@@ -39,9 +40,11 @@ cost([H|T], Cost) :-
 duration([], Dur) :- Dur is 0.
 duration([[O, Port, D]], Dur) :-
     (flight(Port, O, D, _, T) ;		%% Get the length of the current flight.
-    flight(Port, D, O, _, T)),		%% Flights go both directions, so make sure we get the right one.
+    flight(Port, D, O, _, T)),		%% Flights go both directions, 
+					%% 	so make sure we get the right one.
     airport(O, _, Delay),		%% Get the delay from the airport.
-    Dur is T + Delay.			%% Duration is the length of the flight plus airport delay.
+    Dur is T + Delay.			%% Duration is the length of the flight 
+					%% 	plus airport delay.
 duration([H|T], Dur) :-
     T \= [],				%% T should not be empty if we are going to recurse.
     duration([H], T1),			%% This should hit the base case right away.
@@ -53,12 +56,13 @@ numairlines(Path, Count) :- numairlines(Path, Count, []).
 %% Parameter 3 is a utility list containing the current airlines the path has flown on.
 numairlines([], Count, _) :- Count is 0.
 numairlines([[_, Port, _]], Count, Flown) :- 
-    (member(Port, Flown), Count is 0) ;		%% If we have already flown on Port, then 0,
-    (\+ member(Port, Flown), Count is 1).	%% else we need to add this port to our count.
+    (once(member(Port, Flown)), Count is 0) ;	%% If we have already flown on Port, then 0,
+    (once(\+ member(Port, Flown)), Count is 1).	%% else we need to add this port to our count.
 numairlines([[A, Port, B]|T], Count, Flown) :-
-    T \= [],					%% T should not be empty if we are going to recurse.
+    T \= [],					%% T should not be empty 
+						%% 	if we are going to recurse.
     numairlines([[A, Port, B]], C1, Flown),	%% This should hit the base case right away.
-    numairlines(T, C2, [Port|Flown]),		%% Recurse to the tail, but include 'Port' in the 'Flown' list.
+    numairlines(T, C2, [Port|Flown]),
     Count is C1 + C2.				%% Sum the two results.
 
 %%%%%%%%%%%%%%%%%%%
@@ -69,3 +73,7 @@ trip(Origin, Destination, [Price, Duration, NumAirlines, Path]) :-
     cost(Path, Price),
     duration(Path, Duration),
     numairlines(Path, NumAirlines).
+
+%%%%%%%%%%%%%%%%%%%
+%% Predicate #2. %%
+%%%%%%%%%%%%%%%%%%%
